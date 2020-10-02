@@ -1,5 +1,4 @@
 import groovy.json.JsonSlurper
-import groovy.transform.Field
 
 /**
  *
@@ -238,7 +237,7 @@ private void discover() {
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
     def params = [ uri: uri, headers: headers, contentType: contentType ]
-    asynchttpGet(handleDeviceList, params, params)
+    asynchttpGet(handleDeviceList, params, [params: params])
 }
 
 def handleDeviceList(resp, data) {
@@ -248,7 +247,11 @@ def handleDeviceList(resp, data) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
         data.isRetry = true
-        asynchttpGet(handleDeviceGet, data, data)
+        asynchttpGet(handleDeviceList, data.params, data)
+    } else if (respCode == 429 && data.backoffCount < 5) {
+        log.warn('Hit rate limit, backoff and retry')
+        data.backoffCount = (data.backoffCount ?: 0) + 1
+        runIn(10, handleBackoffRetryGet, [callback: handleDeviceList, data: data])
     } else if (respCode != 200 ) {
         log.warn('Device-list response code: ' + respCode + ', body: ' + respJson)
     } else {
@@ -256,7 +259,7 @@ def handleDeviceList(resp, data) {
             def device = [:]
             device.type = it.type.tokenize('.')[-1].toLowerCase().capitalize()
             device.id = it.name.tokenize('/')[-1]
-            device.label = it.traits['sdm.devices.traits.Info'].customName
+            device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
             def dev = makeRealDevice(device)
             if (dev) {
                 switch (it.type) {
@@ -272,6 +275,10 @@ def handleDeviceList(resp, data) {
             }
         }
     }
+}
+
+def handleBackoffRetryGet(map) {
+    asynchttpGet(map.callback, map.data.params, map.data)
 }
 
 def makeRealDevice(device) {
@@ -292,6 +299,14 @@ def makeRealDevice(device) {
     }
 }
 
+def processTraits(device, details) {
+    if (device.hasCapability('Thermostat')) {
+        processThermostatTraits(device, details)
+    } else {
+        processCameraTraits(device, details)
+    }
+}
+
 def processThermostatTraits(device, details) {
     log.debug(device)
     log.debug(details)
@@ -301,35 +316,61 @@ def processThermostatTraits(device, details) {
     connectivity ? sendEvent(device, [name: 'connectivity', value: connectivity]) : null
     def fanStatus = details.traits['sdm.devices.traits.Fan']?.timerMode
     fanStatus ? sendEvent(device, [name: 'thermostatFanMode', value: fanStatus == 'OFF' ? 'auto' : 'on']) : null
+    fanStatus ? sendEvent(device, [name: 'supportedThermostatFanModes', value: ['auto', 'on']]) : null
     def fanTimeout = details.traits['sdm.devices.traits.Fan']?.timerTimeout
     fanTimeout ? sendEvent(device, [name: 'fanTimeout', value: fanStatus == 'OFF' ? '' : fanTimeout]) : null
     def nestMode = details.traits['sdm.devices.traits.ThermostatMode']?.mode
     nestMode ? sendEvent(device, [name: 'thermostatMode', value: nestMode == 'HEATCOOL' ? 'auto' : nestMode.toLowerCase()]) : null
+    def nestAvailableModes = details.traits['sdm.devices.traits.ThermostatMode']?.availableModes
+    nestAvailableModes ? sendEvent(device, [name: 'supportedThermostatModes', value: translateNestAvailableModes(nestAvailableModes)]) : null
     def ecoMode = details.traits['sdm.devices.traits.ThermostatEco']?.mode
     ecoMode ? sendEvent(device, [name: 'ecoMode', value: ecoMode]) : null
+    def ecoCoolPoint = details.traits['sdm.devices.traits.ThermostatEco']?.coolCelsius
+    def ecoHeatPoint = details.traits['sdm.devices.traits.ThermostatEco']?.heatCelsius
     def nestHvac = details.traits['sdm.devices.traits.ThermostatHvac']?.status
     def operState = ''
+    fanStatus = fanStatus ? fanStatus.toLowerCase() : device.currentValue('thermostatFanMode')
     if (nestHvac == 'OFF') {
-        operState = fanStatus == 'OFF' ? 'idle' : 'fan only'
+        operState = fanStatus == 'on' ? 'fan only' : 'idle'
     } else {
         operState = nestHvac?.toLowerCase()
     }
     nestHvac ? sendEvent(device, [name: 'thermostatOperatingState', value: operState]) : null
     def tempScale = details.traits['sdm.devices.traits.Settings']?.temperatureScale
     tempScale ? sendEvent(device, [name: 'tempScale', value: tempScale]) : null
-    def coolPoint = ecoMode == 'OFF' ? details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.coolCelsius : details.traits['sdm.devices.traits.ThermostatEco']?.coolCelsius
-    def heatPoint = ecoMode == 'OFF' ? details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.heatCelsius : details.traits['sdm.devices.traits.ThermostatEco']?.heatCelsius
-    def temp = details.traits['sdm.devices.traits.Temperature']?.ambientTemperatureCelsius
-    if (tempScale == 'FAHRENHEIT') {
-        coolPoint = celsiusToFahrenheit(coolPoint)
-        heatPoint = celsiusToFahrenheit(heatPoint)
-        temp = celsiusToFahrenheit(temp)
+    if (tempScale && tempScale.substring(0, 1) != getTemperatureScale()) {
+        log.warn("Overriding ${device} tempScale: ${tempScale} with HE: ${getTemperatureScale()}")
+        tempScale = getTemperatureScale() == 'F' ? 'FAHRENHEIT' : 'CELSIUS'
     }
+    def coolPoint = details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.coolCelsius
+    def heatPoint = details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.heatCelsius
+    def temp = details.traits['sdm.devices.traits.Temperature']?.ambientTemperatureCelsius
+    if (getTemperatureScale() == 'F') {
+        ecoCoolPoint = ecoCoolPoint ? celsiusToFahrenheit(ecoCoolPoint) : null
+        ecoHeatPoint = ecoHeatPoint ? celsiusToFahrenheit(ecoHeatPoint) : null
+        coolPoint = coolPoint ? celsiusToFahrenheit(coolPoint) : null
+        heatPoint = heatPoint ? celsiusToFahrenheit(heatPoint) : null
+        temp = temp ? celsiusToFahrenheit(temp) : null
+    }
+    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: ecoCoolPoint]) : null
+    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: ecoHeatPoint]) : null
     coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: coolPoint]) : null
     heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: heatPoint]) : null
     temp ? sendEvent(device, [name: 'temperature', value: temp]) : null
     def room = details?.parentRelations?.getAt(0)?.displayName
     room ? sendEvent(device, [name: 'room', value: room]) : null
+}
+
+def translateNestAvailableModes(modes) {
+    def trModes = []
+    modes.each {
+        if (it == 'HEATCOOL') {
+            trModes.add('auto')
+        } else {
+            trModes.add(it.toLowerCase())
+        }
+    }
+    return trModes
 }
 
 def processCameraTraits(device, details) {
@@ -349,12 +390,18 @@ def createEventSubscription() {
         ]
     ]
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
-    asynchttpPut(putResponse, params)
+    asynchttpPut(putResponse, [params: params])
 }
 
 def putResponse(resp, data) {
     log.debug(resp.getStatus())
     log.debug(resp.getData())
+    if (respCode == 401 && !data.isRetry) {
+        log.warn('Authorization token expired, will refresh and retry.')
+        initialize()
+        data.isRetry = true
+        asynchttpPut(handlePostCommand, data.params, data)
+    }
 }
 
 def postEvents() {
@@ -365,11 +412,7 @@ def postEvents() {
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
     log.debug(device)
-    if (device.hasCapability('Thermostat')) {
-        processThermostatTraits(device, dataJson.resourceUpdate)
-    } else {
-        processCameraTraits(device, dataJson.resourceUpdate)
-    }
+    processTraits(device, dataJson.resourceUpdate)
 }
 
 void removeChildren() {
@@ -397,4 +440,104 @@ void deleteEventSubscription() {
 
 def logToken() {
     log.debug("Access Token: ${state.googleAccessToken}")
+}
+
+def getDeviceData(com.hubitat.app.DeviceWrapper device) {
+    def deviceId = device.getDeviceNetworkId()
+    def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/devices/' + deviceId
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def contentType = 'application/json'
+    def params = [ uri: uri, headers: headers, contentType: contentType ]
+    asynchttpGet(handleDeviceGet, params, [device: device, params: params])
+}
+
+def handleDeviceGet(resp, data) {
+    def respCode = resp.getStatus()
+    def respJson = resp.getJson()
+    if (respCode == 401 && !data.isRetry) {
+        log.warn('Authorization token expired, will refresh and retry.')
+        initialize()
+        data.isRetry = true
+        asynchttpGet(handleDeviceGet, data.params, data)
+    } else if (respCode == 429 && data.backoffCount < 5) {
+        log.warn('Hit rate limit, backoff and retry')
+        data.backoffCount = (data.backoffCount ?: 0) + 1
+        runIn(10, handleBackoffRetryGet, [callback: handleDeviceGet, data: data])
+    } else if (respCode != 200 ) {
+        log.error("Device-get response code: ${respCode}, body: ${respJson}")
+    } else {
+        processTraits(data.device, respJson)
+    }
+}
+
+def deviceSetThermostatMode(com.hubitat.app.DeviceWrapper device, String mode) {
+    deviceSendCommand(device, 'sdm.devices.commands.ThermostatMode.SetMode', [mode: mode])
+}
+
+def deviceSetFanMode(com.hubitat.app.DeviceWrapper device, String mode, duration=null) {
+    Map params = [timerMode: mode]
+    if (duration) {
+        params.duration = duration
+    }
+    deviceSendCommand(device, 'sdm.devices.commands.Fan.SetTimer', params)
+}
+
+def deviceSetTemperatureSetpoint(com.hubitat.app.DeviceWrapper device, heatPoint=null, coolPoint=null) {
+    if (device.currentValue('ecoMode') == 'MANUAL_ECO') {
+        log.warn('Cannot adjust temperature setpoint(s) when device is in MANUAL_ECO mode')
+        return
+    }
+    log.info("Setting coolPoint: ${coolPoint} and/or heatPoint: ${heatPoint} for device ${device}")
+    if (device.currentValue('tempScale') == 'FAHRENHEIT') {
+        coolPoint = coolPoint ? fahrenheitToCelsius(coolPoint) : null
+        heatPoint = heatPoint ? fahrenheitToCelsius(heatPoint) : null
+    }
+    log.debug(coolPoint)
+    log.debug(heatPoint)
+    if (coolPoint && heatPoint) {
+        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange', [coolCelsius: coolPoint, heatCelsius: heatPoint])
+    } else if (coolPoint) {
+        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool', [coolCelsius: coolPoint])
+    } else if (heatPoint) {
+        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat', [heatCelsius: heatPoint])
+    }
+}
+
+def deviceSetEcoMode(com.hubitat.app.DeviceWrapper device, String mode) {
+    deviceSendCommand(device, 'sdm.devices.commands.ThermostatEco.SetMode', [mode: mode])
+}
+
+def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map cmdParams) {
+    def deviceId = device.getDeviceNetworkId()
+    def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/devices/' + deviceId + ':executeCommand'
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def contentType = 'application/json'
+    def body = [ command: command, params: cmdParams ]
+    def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+    asynchttpPost(handlePostCommand, params, [device: device, command: command, params: params])
+}
+
+def handlePostCommand(resp, data) {
+    def respCode = resp.getStatus()
+    try {
+        def respJson = resp.getJson()
+    } catch (IllegalArgumentException ignored) {
+        log.warn("executeCommand ${data.command}: cannot parse JSON from response")
+    }
+    if (respCode == 401 && !data.isRetry) {
+        log.warn('Authorization token expired, will refresh and retry.')
+        initialize()
+        data.isRetry = true
+        asynchttpPost(handlePostCommand, data.params, data)
+    } else if (respCode == 429 && data.backoffCount < 5) {
+        log.warn('Hit rate limit, backoff and retry')
+        data.backoffCount = (data.backoffCount ?: 0) + 1
+        runIn(10, handleBackoffRetryPost, [callback: handlePostCommand, data: data])
+    } else if (respCode != 200) {
+        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
+    }
+}
+
+def handleBackoffRetryPost(map) {
+    asynchttpPost(map.callback, map.data.params, map.data)
 }
