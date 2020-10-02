@@ -259,7 +259,7 @@ def handleDeviceList(resp, data) {
             def device = [:]
             device.type = it.type.tokenize('.')[-1].toLowerCase().capitalize()
             device.id = it.name.tokenize('/')[-1]
-            device.label = it.traits['sdm.devices.traits.Info'].customName
+            device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
             def dev = makeRealDevice(device)
             if (dev) {
                 switch (it.type) {
