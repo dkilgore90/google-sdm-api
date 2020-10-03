@@ -281,7 +281,7 @@ def handleDeviceList(resp, data) {
             device.id = it.name.tokenize('/')[-1]
             device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
             def dev = makeRealDevice(device)
-            if (dev) {
+            if (dev != null) {
                 switch (it.type) {
                 case 'sdm.devices.types.THERMOSTAT':
                     processThermostatTraits(dev, it)
@@ -320,6 +320,8 @@ def makeRealDevice(device) {
 }
 
 def processTraits(device, details) {
+    def room = details.parentRelations?.getAt(0)?.displayName
+    room ? sendEvent(device, [name: 'room', value: room]) : null
     if (device.hasCapability('Thermostat')) {
         processThermostatTraits(device, details)
     } else {
@@ -377,8 +379,6 @@ def processThermostatTraits(device, details) {
     coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: coolPoint]) : null
     heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: heatPoint]) : null
     temp ? sendEvent(device, [name: 'temperature', value: temp]) : null
-    def room = details?.parentRelations?.getAt(0)?.displayName
-    room ? sendEvent(device, [name: 'room', value: room]) : null
 }
 
 def translateNestAvailableModes(modes) {
@@ -394,7 +394,21 @@ def translateNestAvailableModes(modes) {
 }
 
 def processCameraTraits(device, details) {
-    
+    if (details.events) {
+        processCameraEvents(device, details.events)
+    }
+    def imgRes = details.traits['sdm.devices.traits.CameraImage']?.maxImageResolution
+    imgRes?.width ? sendEvent(device, [name: 'imgWidth', value: imgRes.width]) : null
+    imgRes?.height ? sendEvent(device, [name: 'imgHeight', value: imgRes.height]) : null   
+}
+
+def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
+    events.each { key, value -> 
+        if (key == 'sdm.devices.events.DoorbellChime.Chime') {
+            sendEvent(device, [name: 'pushed', value: 1])
+        }
+        deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+    }
 }
 
 def createEventSubscription() {
@@ -437,7 +451,9 @@ def postEvents() {
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
     log.debug(device)
-    processTraits(device, dataJson.resourceUpdate)
+    if (device != null) {
+        processTraits(device, dataJson.resourceUpdate)
+    }
 }
 
 void removeChildren() {
@@ -560,9 +576,27 @@ def handlePostCommand(resp, data) {
         runIn(10, handleBackoffRetryPost, [callback: handlePostCommand, data: data])
     } else if (respCode != 200) {
         log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
+    } else {
+        if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
+            def uri = respJson.results.url
+            def query = [ width: device.currentValue('imgWidth') ]
+            def headers = [ Authorization: "Basic ${respJson.results.token}" ]
+            def params = [uri: uri, headers: headers]
+            asynchttpGet(handleImageGet, params, [device: data.device])
+        }
     }
 }
 
 def handleBackoffRetryPost(map) {
     asynchttpPost(map.callback, map.data.params, map.data)
+}
+
+def handleImageGet(resp, data) {
+    def respCode = resp.getStatus()
+    if (respCode == 200) {
+        def img = resp.getData()
+        sendEvent(data.device, [name: 'image', value: img])
+    } else {
+        log.error("image download failed for device ${data.device}")
+    }
 }

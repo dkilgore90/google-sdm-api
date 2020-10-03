@@ -17,16 +17,35 @@ metadata {
         capability 'VideoCamera'
         capability 'PushableButton'
         capability 'ImageCapture'
+        capability 'Refresh'
 
         attribute 'room', 'string'
+        attribute 'imgWidth', 'number'
+        attribute 'imgHeight', 'number'
     }
 }
 
 def installed() {
+    initialize()
 }
 
 def updated() {
+    initialize()
 }
 
 def uninstalled() {
+
+}
+
+def initialize() {
+    device.sendEvent(name: 'numberOfButtons', value: 1)
+}
+
+def refresh() {
+    initialize()
+    parent.getDeviceData(device)
+}
+
+def take() {
+    log.warn('on-demand image capture is not supported')
 }

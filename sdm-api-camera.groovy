@@ -15,8 +15,12 @@
 metadata {
     definition(name: 'Google Nest Camera', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-camera.groovy') {
         capability 'VideoCamera'
+        capability 'ImageCapture'
+        capability 'Refresh'
 
         attribute 'room', 'string'
+        attribute 'imgWidth', 'number'
+        attribute 'imgHeight', 'number'
     }
 }
 
@@ -27,4 +31,12 @@ def updated() {
 }
 
 def uninstalled() {
+}
+
+def refresh() {
+    parent.getDeviceData(device)
+}
+
+def take() {
+    log.warn('on-demand image capture is not supported')
 }
