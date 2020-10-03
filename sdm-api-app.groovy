@@ -177,8 +177,11 @@ def login(String authCode) {
                     redirect_uri : 'https://www.google.com'  //getFullApiServerUrl() + '/handleAuth'
                 ]
     def params = [uri: uri, query: query]
-    //asynchttpPost(handleLoginResponse, params)
-    httpPost(params) { response -> handleLoginResponse(response) }
+    try {
+        httpPost(params) { response -> handleLoginResponse(response) }
+    } catch (Exception e) {
+        log.error("Login failed: ${e.toString()}")
+    }
 }
 
 def refreshLogin() {
@@ -191,11 +194,14 @@ def refreshLogin() {
                     grant_type   : 'refresh_token',
                 ]
     def params = [uri: uri, query: query]
-    //asynchttpPost(handleLoginResponse, params)
-    httpPost(params) { response -> handleLoginResponse(response) }
+    try {
+        httpPost(params) { response -> handleLoginResponse(response) }
+    } catch (Exception e) {
+        log.error("Login refresh failed: ${e.toString()}")
+    }
 }
 
-def handleLoginResponse(resp, data=null) {
+def handleLoginResponse(resp) {
     def respCode = resp.getStatus()
     def respJson = resp.getData()
     if (respCode != 200) {
