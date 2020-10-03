@@ -60,17 +60,8 @@ def mainPage() {
 //        section {
 //            input 'refreshToken', 'button', title: 'Refresh Auth', submitOnChange: true
 //        }
-//        section {
-//            input 'getToken', 'button', title: 'Log Access Token', submitOnChange: true
-//        }
-//        section {
-//            input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
-//        }
         section {
             input 'discoverDevices', 'button', title: 'Discover', submitOnChange: true
-        }
-        section {
-            input 'deleteDevices', 'button', title: 'Delete', submitOnChange: true
         }
         listDiscoveredDevices()
         
@@ -85,6 +76,9 @@ def mainPage() {
         }
         section {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
+        }
+        section {
+            input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
         }
     }
 }
