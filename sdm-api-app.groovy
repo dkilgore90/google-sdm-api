@@ -411,6 +411,11 @@ def createEventSubscription() {
 
 def putResponse(resp, data) {
     log.debug(resp.getStatus())
+    if (resp.hasError() {
+        log.error(resp.getErrorJson())
+    } else {
+        log.debug(resp.getJson())
+    }
     log.debug(resp.getData())
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
