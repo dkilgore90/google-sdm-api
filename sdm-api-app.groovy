@@ -411,7 +411,7 @@ def createEventSubscription() {
 
 def putResponse(resp, data) {
     log.debug(resp.getStatus())
-    if (resp.hasError() {
+    if (resp.hasError()) {
         log.error(resp.getErrorJson())
     } else {
         log.debug(resp.getJson())
