@@ -81,6 +81,9 @@ def mainPage() {
             input 'getToken', 'button', title: 'Log Access Token', submitOnChange: true
         }
         section {
+            input 'refreshToken', 'button', title: 'Force Token Refresh', submitOnChange: true
+        }
+        section {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
         }
     }
@@ -218,6 +221,7 @@ def handleLoginResponse(resp) {
         log.warn('Login response code: ' + respCode + ', body: ' + respJson)
         return
     }
+    log.debug("Authorized scopes: ${respJson.scope}")
     if (respJson.refresh_token) {
         state.googleRefreshToken = respJson.refresh_token
     }
