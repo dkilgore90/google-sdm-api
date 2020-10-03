@@ -396,7 +396,7 @@ def createEventSubscription() {
         ]
     ]
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
-    asynchttpPut(putResponse, [params: params])
+    asynchttpPut(putResponse, params, [params: params])
 }
 
 def putResponse(resp, data) {
