@@ -73,6 +73,16 @@ def mainPage() {
             input 'deleteDevices', 'button', title: 'Delete', submitOnChange: true
         }
         listDiscoveredDevices()
+        
+        section {
+            paragraph "Debug buttons"
+        }
+        section {
+            input 'getToken', 'button', title: 'Log Access Token', submitOnChange: true
+        }
+        section {
+            input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
+        }
     }
 }
 
