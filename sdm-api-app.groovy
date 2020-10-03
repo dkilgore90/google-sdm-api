@@ -560,8 +560,9 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
+    def respJson
     try {
-        def respJson = resp.getJson()
+        respJson = resp.getJson()
     } catch (IllegalArgumentException ignored) {
         log.warn("executeCommand ${data.command}: cannot parse JSON from response")
     }
@@ -578,8 +579,9 @@ def handlePostCommand(resp, data) {
         log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
     } else {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
+            log.debug(respJson)
             def uri = respJson.results.url
-            def query = [ width: device.currentValue('imgWidth') ]
+            def query = [ width: data.device.currentValue('imgWidth') ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers]
             asynchttpGet(handleImageGet, params, [device: data.device])
@@ -588,7 +590,8 @@ def handlePostCommand(resp, data) {
 }
 
 def handleBackoffRetryPost(map) {
-    asynchttpPost(map.callback, map.data.params, map.data)
+//disable backoff/retry for now
+//    asynchttpPost(map.callback, map.data.params, map.data)
 }
 
 def handleImageGet(resp, data) {
