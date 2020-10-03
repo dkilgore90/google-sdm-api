@@ -180,7 +180,6 @@ def initialize() {
 
 def login(String authCode) {
     def creds = getCredentials()
-    log.debug(creds)
     def uri = 'https://www.googleapis.com/oauth2/v4/token'
     def query = [
                     client_id    : creds.client_id,
@@ -583,7 +582,7 @@ def handlePostCommand(resp, data) {
             def uri = respJson.results.url
             def query = [ width: data.device.currentValue('imgWidth') ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
-            def params = [uri: uri, headers: headers]
+            def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
         }
     }
@@ -598,7 +597,8 @@ def handleImageGet(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 200) {
         def img = resp.getData()
-        sendEvent(data.device, [name: 'image', value: img])
+        log.debug(img.length())
+        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
         log.error("image download failed for device ${data.device}")
     }
