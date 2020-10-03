@@ -405,7 +405,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
 }
 
 def createEventSubscription() {
-    createAccessToken()
+    state.accessToken ? createAccessToken() : null
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
