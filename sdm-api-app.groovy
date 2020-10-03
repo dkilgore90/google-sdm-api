@@ -397,7 +397,7 @@ def processCameraTraits(device, details) {
     if (details.events) {
         processCameraEvents(device, details.events)
     }
-    def imgRes = details.traits['sdm.devices.traits.CameraImage']?.maxImageResolution
+    def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
     imgRes?.width ? sendEvent(device, [name: 'imgWidth', value: imgRes.width]) : null
     imgRes?.height ? sendEvent(device, [name: 'imgHeight', value: imgRes.height]) : null   
 }
