@@ -41,6 +41,11 @@ mappings {
             GET: "handleAuthRedirect"
         ]
     }
+    path("/img/:deviceId") {
+        action: [
+            GET: "getDashboardImg"
+        ]
+    }
 }
 
 def mainPage() {
@@ -264,7 +269,7 @@ def handleDeviceList(resp, data) {
     } else if (respCode == 429 && data.backoffCount < 5) {
         log.warn('Hit rate limit, backoff and retry')
         data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryGet, [callback: handleDeviceList, data: data])
+        runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
         log.warn('Device-list response code: ' + respCode + ', body: ' + respJson)
     } else {
@@ -275,16 +280,7 @@ def handleDeviceList(resp, data) {
             device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
             def dev = makeRealDevice(device)
             if (dev != null) {
-                switch (it.type) {
-                case 'sdm.devices.types.THERMOSTAT':
-                    processThermostatTraits(dev, it)
-                    break
-                case 'sdm.devices.types.DOORBELL':
-                case 'sdm.devices.types.CAMERA':
-                case 'sdm.devices.types.DISPLAY':
-                    processCameraTraits(dev, it)
-                    break
-                }
+                processTraits(dev, it)
             }
         }
     }
@@ -400,6 +396,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             sendEvent(device, [name: 'pushed', value: 1])
         }
+        device.processMotion()
         deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
     }
 }
@@ -444,9 +441,21 @@ def postEvents() {
     def dataJson = new JsonSlurper().parseText(dataString)
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
-    log.debug(device)
     if (device != null) {
-        processTraits(device, dataJson.resourceUpdate)
+        def lastEvent = device.currentValue('lastEventTime')
+        def timeCompare
+        try {
+            timeCompare = toDateTime(dataJson.timestamp).compareTo(toDateTime(lastEvent))
+        } catch (java.text.ParseException ignored) {
+            //should only fail on first event -- e.g. lastEvent == null
+        }
+        if ( timeCompare > 0 || lastEvent == null ) {
+            sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
+            processTraits(device, dataJson.resourceUpdate)
+        } else {
+            log.warn("Received event out of order, refreshing device ${device}")
+            getDeviceData(device)
+        }
     }
 }
 
@@ -497,7 +506,7 @@ def handleDeviceGet(resp, data) {
     } else if (respCode == 429 && data.backoffCount < 5) {
         log.warn('Hit rate limit, backoff and retry')
         data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryGet, [callback: handleDeviceGet, data: data])
+        runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
         log.error("Device-get response code: ${respCode}, body: ${respJson}")
     } else {
@@ -568,7 +577,7 @@ def handlePostCommand(resp, data) {
     } else if (respCode == 429 && data.backoffCount < 5) {
         log.warn('Hit rate limit, backoff and retry')
         data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryPost, [callback: handlePostCommand, data: data])
+        runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200) {
         log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
     } else {
@@ -593,8 +602,20 @@ def handleImageGet(resp, data) {
     if (respCode == 200) {
         def img = resp.getData()
         log.debug(img.length())
+//        sendEvent(data.device, [name: 'rawImg', value: img])
+//        def relativePath = "/apps/api/${app.id}" //getFullLocalApiServerUrl() - getLocalApiServerUrl()
+//        log.debug(relativePath)
+//        sendEvent(data.device, [name: 'image', value: "<img src=${relativePath}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />"])
         sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
-        log.error("image download failed for device ${data.device}")
+        log.error("image download failed for device ${data.device}, response code: ${respCode}")
     }
+}
+
+def getDashboardImg() {
+    log.debug('get image')
+    def deviceId = params.deviceId
+    def device = getChildDevice(deviceId)
+    def img = device.currentValue('rawImg')
+    render contentType: 'image/jpeg', data: "image/jpeg;base64, ${img}", status: 200
 }

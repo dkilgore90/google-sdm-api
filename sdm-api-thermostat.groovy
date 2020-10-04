@@ -25,6 +25,7 @@ metadata {
         attribute 'ecoCoolPoint', 'number'
         attribute 'ecoHeatPoint', 'number'
         attribute 'tempScale', 'string'
+        attribute 'lastEventTime', 'string'
 
         command 'fanOn', [[name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setThermostatFanMode', [[name: 'fanmode', type: 'ENUM', constraints: ['auto', 'on']], [name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
@@ -82,6 +83,8 @@ def setCoolingSetpoint(temp) {
     def mode = device.currentValue('thermostatMode')
     if (mode == 'cool') {
         parent.deviceSetTemperatureSetpoint(device, null, temp)
+    } else if (mode == 'auto') {
+        parent.deviceSetTemperatureSetpoint(device, device.currentValue('heatingSetpoint'), temp)
     } else {
         log.warn("Cannot setCoolingSetpoint in thermostatMode: ${mode}")
     }
@@ -91,6 +94,8 @@ def setHeatingSetpoint(temp) {
     def mode = device.currentValue('thermostatMode')
     if (mode == 'heat') {
         parent.deviceSetTemperatureSetpoint(device, temp, null)
+    } else if (mode == 'auto') {
+        parent.deviceSetTemperatureSetpoint(device, temp, device.currentValue('coolingSetpoint'))
     } else {
         log.warn("Cannot setHeatingSetpoint in thermostatMode: ${mode}")
     }

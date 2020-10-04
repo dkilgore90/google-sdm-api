@@ -18,10 +18,17 @@ metadata {
         capability 'PushableButton'
         capability 'ImageCapture'
         capability 'Refresh'
+        capability 'MotionSensor'
 
         attribute 'room', 'string'
         attribute 'imgWidth', 'number'
         attribute 'imgHeight', 'number'
+        attribute 'rawImg', 'string'
+        attribute 'lastEventTime', 'string'
+    }
+    
+    preferences {
+        input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: false, defaultValue: 15
     }
 }
 
@@ -44,6 +51,15 @@ def initialize() {
 def refresh() {
     initialize()
     parent.getDeviceData(device)
+}
+
+def processMotion() {
+    device.sendEvent(name: 'motion', value: 'active')
+    runIn(minimumMotionTime, motionInactive, [overwrite: true])
+}
+
+def motionInactive() {
+    device.sendEvent(name: 'motion', value: 'inactive')
 }
 
 def take() {
