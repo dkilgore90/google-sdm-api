@@ -28,6 +28,7 @@ definition(
 
 preferences {
     page(name: 'mainPage')
+    page(name: 'debugPage')
 }
 
 mappings {
@@ -53,10 +54,10 @@ def mainPage() {
 //        section {
 //            paragraph "Add this link in Google as valid redirect_uri: '" + getFullApiServerUrl() + "/handleAuth'"
 //        }
-//        getAuthLink()
-        section {
-            input 'googleAuth', 'button', title: 'Authorize', submitOnChange: true
-        }
+        getAuthLink()
+//        section {
+//            input 'googleAuth', 'button', title: 'Authorize', submitOnChange: true
+//        }
 //        section {
 //            input 'refreshToken', 'button', title: 'Refresh Auth', submitOnChange: true
 //        }
@@ -66,14 +67,16 @@ def mainPage() {
 //        section {
 //            input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
 //        }
-        section {
-            input 'discoverDevices', 'button', title: 'Discover', submitOnChange: true
-        }
-        section {
-            input 'deleteDevices', 'button', title: 'Delete', submitOnChange: true
-        }
+        getDiscoverButton()
+        
         listDiscoveredDevices()
         
+        getDebugLink()
+    }
+}
+
+def debugPage() {
+    dynamicPage(name:"debugPage", title: "Debug", install: false, uninstall: false) {
         section {
             paragraph "Debug buttons"
         }
@@ -86,19 +89,51 @@ def mainPage() {
         section {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
         }
+        section {
+            input 'deleteDevices', 'button', title: 'Delete', submitOnChange: true
+        }
     }
 }
 
 def getAuthLink() {
     def creds = getCredentials()
-    section {
+    if (projectId != null && creds.client_id != null && state.accessToken) {
+        section {
+            href(
+                name       : 'Auth Link',
+                url        : 'https://nestservices.google.com/partnerconnections/' + projectId + 
+                                '/auth?redirect_uri=https://cloud.hubitat.com/oauth/stateredirect' +
+                                '&state=' + getFullApiServerUrl() + '/handleAuth?access_token=' + state.accessToken
+                                '&access_type=offline&prompt=consent&client_id=' + creds.client_id + 
+                                '&response_type=code&scope=https://www.googleapis.com/auth/sdm.service https://www.googleapis.com/auth/pubsub',
+                description: 'Click this link to authorize with your Google Device Access Project'
+            )
+        }
+    } else {
+        section {
+            paragraph "Authorization link is hidden until the required projectId and credentials.json inputs are provided."
+        }
+    }
+}
+
+def getDiscoverButton() {
+    if (state.googleAccessToken != null) {
+        section {
+            input 'discoverDevices', 'button', title: 'Discover', submitOnChange: true
+        }
+    } else {
+        section {
+            paragraph "Device discovery button is hidden until authorization is completed."
+        }
+    }
+}
+
+def getDebugLink() {
+    section{
         href(
-            name       : 'Auth Link',
-            url        : 'https://nestservices.google.com/partnerconnections/' + projectId + 
-                            '/auth?redirect_uri=' + getFullApiServerUrl() + '/handleAuth' +
-                            '&access_type=offline&prompt=consent&client_id=' + creds.client_id + 
-                            '&response_type=code&scope=https://www.googleapis.com/auth/sdm.service https://www.googleapis.com/auth/pubsub',
-            description: 'Click this link to authorize with your Google Device Access Project'
+            name       : 'Debug buttons',
+            page       : 'debugPage',
+            description: 'Access debug buttons (log current googleAccessToken, force googleAccessToken refresh, retry failed event subscription, delete child devices)'
         )
     }
 }
@@ -133,9 +168,17 @@ def handleAuthRedirect() {
     login(authCode)
     runEvery1Hour refreshLogin
     createEventSubscription()
-    dynamicPage(name: "authPage", "Google Authorization Complete") {
-        mainPageLink()
-    }
+    def http =  """
+    <!DOCTYPE html>
+    <html>
+        <head><title>Hubitat Elevation - Google SDM API</title></head>
+        <body>
+            <p>Congratulations! Google SDM API has authenticated successfully</p>
+            <p><a href=https://${location.hub.localIP}/installedapp/configure/${app.id}/mainPage>Click here</a> to return to the App main page.</p>
+        </body>
+    </html>"""
+
+    render contentType: "text/html", data: html, status: 200
 }
 
 def loginAuth() {
@@ -163,6 +206,7 @@ def updated() {
 def installed() {
     log.debug 'Google SDM API installed'
     initialize()
+    createAccessToken()
 }
 
 def uninstalled() {
