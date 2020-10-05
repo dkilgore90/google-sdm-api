@@ -12,6 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
+ *  version: 0.0.1
  */
 
 definition(
@@ -21,6 +22,7 @@ definition(
         description: 'Provides for discovery and control of Google Nest devices',
         importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-app.groovy',
         category: 'Discovery',
+        oauth: true,
         iconUrl: '',
         iconX2Url: '',
         iconX3Url: ''
