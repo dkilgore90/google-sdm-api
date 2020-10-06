@@ -103,7 +103,7 @@ def getAuthLink() {
         }
     } else {
         section {
-            paragraph "Authorization link is hidden until the required projectId and credentials.json inputs are provided."
+            paragraph "Authorization link is hidden until the required projectId and credentials.json inputs are provided, and App installation is saved by clicking 'Done'"
         }
     }
 }

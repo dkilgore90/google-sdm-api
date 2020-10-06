@@ -29,7 +29,7 @@ metadata {
     }
     
     preferences {
-        input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: false, defaultValue: 15
+        input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
     }
 }
 
@@ -56,6 +56,9 @@ def refresh() {
 
 def processMotion() {
     device.sendEvent(name: 'motion', value: 'active')
+    if (minimumMotionTime == null) {
+        device.updateSetting('minimumMotionTime', 15)
+    }
     runIn(minimumMotionTime, motionInactive, [overwrite: true])
 }
 
