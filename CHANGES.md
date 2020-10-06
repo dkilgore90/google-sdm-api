@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 * Device discovery
 * Thermostat commands
 * Camera event image capture
+* Image display for dashboards
 
 ## sdm-api-thermostat:0.0.1
 * Full command support
@@ -17,11 +18,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 * Chime support (via pushableButton)
 * Motion support (active for configurable period after event)
 * Event-triggered image capture
+* Image attribute available for dashboard tile
 
 ## sdm-api-camera:0.0.1
 * Motion support (active for configurable period after event)
 * Event-triggered image capture
+* Image attribute available for dashboard tile
 
 ## sdm-api-display:0.0.1
 * Motion support (active for configurable period after event)
 * Event-triggered image capture
+* Image attribute available for dashboard tile

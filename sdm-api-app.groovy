@@ -439,7 +439,6 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
 }
 
 def createEventSubscription() {
-    state.accessToken ? createAccessToken() : null
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
@@ -639,11 +638,9 @@ def handleImageGet(resp, data) {
     if (respCode == 200) {
         def img = resp.getData()
         log.debug(img.length())
-//        sendEvent(data.device, [name: 'rawImg', value: img])
-//        def relativePath = "/apps/api/${app.id}" //getFullLocalApiServerUrl() - getLocalApiServerUrl()
-//        log.debug(relativePath)
-//        sendEvent(data.device, [name: 'image', value: "<img src=${relativePath}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />"])
-        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
+        sendEvent(data.device, [name: 'rawImg', value: img])
+        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
+//        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")
     }
@@ -654,5 +651,5 @@ def getDashboardImg() {
     def deviceId = params.deviceId
     def device = getChildDevice(deviceId)
     def img = device.currentValue('rawImg')
-    render contentType: 'image/jpeg', data: "image/jpeg;base64, ${img}", status: 200
+    render contentType: 'image/jpeg', data: img.decodeBase64(), status: 200
 }
