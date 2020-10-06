@@ -52,6 +52,8 @@ Press the **Discover** button on the Google SDM API app page to discover your au
 The latest still image is downloaded when a device event is received (Doorbell, Camera, Display).  This can be displayed in a HE dashboard
 using the `attribute` tile.  Simply select the device, and the attribute to use is `image`.
 
+Note: this currently only works for *Local* dashboards -- support for cloud dashboards coming in a future update.
+
 ### Motion "sensor"
 Any camera event will trigger a motion *Active* event.  Since the current API does not send another event when motion is no longer detected,
 a preferences entry is defined for each device, which determines the amount of time before the motion is deemed *Inactive*.  If another event
