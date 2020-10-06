@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## sdm-api-thermostat:0.0.1
 * Full command support
+* Round temperature values to single decimal precision
 
 ## sdm-api-doorbell:0.0.1
 * Chime support (via pushableButton)

@@ -400,11 +400,11 @@ def processThermostatTraits(device, details) {
         heatPoint = heatPoint ? celsiusToFahrenheit(heatPoint) : null
         temp = temp ? celsiusToFahrenheit(temp) : null
     }
-    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: ecoCoolPoint]) : null
-    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: ecoHeatPoint]) : null
-    coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: coolPoint]) : null
-    heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: heatPoint]) : null
-    temp ? sendEvent(device, [name: 'temperature', value: temp]) : null
+    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: new Double(ecoCoolPoint).round(1)]) : null
+    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: new Double(ecoHeatPoint).round(1)]) : null
+    coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: new Double(coolPoint).round(1)]) : null
+    heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: new Double(heatPoint).round(1)]) : null
+    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1)]) : null
 }
 
 def translateNestAvailableModes(modes) {
@@ -431,7 +431,7 @@ def processCameraTraits(device, details) {
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
-            sendEvent(device, [name: 'pushed', value: 1])
+            sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
         }
         device.processMotion()
         deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
