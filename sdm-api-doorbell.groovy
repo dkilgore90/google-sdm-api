@@ -11,6 +11,13 @@
  *  Software is provided without warranty and your use of it is at your own risk.
  *
  *  version: 0.1.0
+ * 
+ *  Button / Motion Triggers
+ *      1 - sdm.devices.traits.DoorbellChime
+ *      2 - sdm.devices.traits.CameraPerson
+ *      3 - sdm.devices.traits.CameraMotion
+ *      4 - sdm.devices.traits.CameraSound
+ *
  */
 
 metadata {
@@ -20,41 +27,62 @@ metadata {
         capability 'ImageCapture'
         capability 'Refresh'
         capability 'MotionSensor'
-
-        attribute 'room', 'string'
+        
+        attribute 'room', 'string'    
         attribute 'imgWidth', 'number'
         attribute 'imgHeight', 'number'
         attribute 'rawImg', 'string'
         attribute 'lastEventTime', 'string'
+        attribute 'activeChime', 'bool'
+        attribute 'activePerson', 'bool'
+        attribute 'activeMotion', 'bool'
+        attribute 'activeSound', 'bool'
     }
     
     preferences {
+        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
         input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
+
+        input name: "activeChimeInput", type: "bool", title: "Trigger motion on chime?", defaultValue: false
+        input name: "activePersonInput", type: "bool", title: "Trigger motion on person?", defaultValue: false
+        input name: "activeMotionInput", type: "bool", title: "Trigger motion on motion?", defaultValue: false
+        input name: "activeSoundInput", type: "bool", title: "Trigger motion on sound?", defaultValue: false
+	}    
+}
+
+private logDebug(msg) {
+    if (settings?.debugOutput) {
+        log.debug "${device.label}: $msg"
     }
 }
 
 def installed() {
-    initialize()
+    updated()
 }
 
 def updated() {
-    initialize()
+    // Four buttons:
+    //   1 - sdm.devices.traits.DoorbellChime
+    //   2 - sdm.devices.traits.CameraPerson
+    //   3 - sdm.devices.traits.CameraMotion
+    //   4 - sdm.devices.traits.CameraSound
+    sendEvent(name:"numberOfButtons", value:4)
+    sendEvent(name:"activeChime", value:activeChimeInput)
+    sendEvent(name:"activePerson", value:activePersonInput)
+    sendEvent(name:"activeMotion", value:activeMotionInput)
+    sendEvent(name:"activeSound", value:activeSoundInput)
+    motionInactive()
 }
 
 def uninstalled() {
-
-}
-
-def initialize() {
-    device.sendEvent(name: 'numberOfButtons', value: 1)
 }
 
 def refresh() {
-    initialize()
+    updated()
     parent.getDeviceData(device)
 }
-
 def processMotion() {
+    logDebug "${device.label}: Motion Active"
     device.sendEvent(name: 'motion', value: 'active')
     if (minimumMotionTime == null) {
         device.updateSetting('minimumMotionTime', 15)
@@ -63,6 +91,7 @@ def processMotion() {
 }
 
 def motionInactive() {
+    logDebug "${device.label}: Motion Inactive"
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 

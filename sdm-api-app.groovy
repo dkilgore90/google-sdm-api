@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.0
+ *  version: 0.2.0 
  */
 
 definition(
@@ -48,6 +48,12 @@ mappings {
         action: [
             GET: "getDashboardImg"
         ]
+    }
+}
+
+private logDebug(msg) {
+    if (settings?.debugOutput) {
+        log.debug "$msg"
     }
 }
 
@@ -156,7 +162,7 @@ def getCredentials() {
 }
 
 def handleAuthRedirect() {
-    log.debug('successful redirect from google')
+    logDebug('successful redirect from google')
     unschedule()
     def authCode = params.code
     login(authCode)
@@ -256,7 +262,7 @@ def handleLoginResponse(resp) {
         log.warn('Login response code: ' + respCode + ', body: ' + respJson)
         return
     }
-    log.debug("Authorized scopes: ${respJson.scope}")
+    logDebug("Authorized scopes: ${respJson.scope}")
     if (respJson.refresh_token) {
         state.googleRefreshToken = respJson.refresh_token
     }
@@ -356,8 +362,8 @@ def processTraits(device, details) {
 }
 
 def processThermostatTraits(device, details) {
-    log.debug(device)
-    log.debug(details)
+    logDebug(device)
+    logDebug(details)
     def humidity = details.traits['sdm.devices.traits.Humidity']?.ambientHumidityPercent
     humidity ? sendEvent(device, [name: 'humidity', value: humidity]) : null
     def connectivity = details.traits['sdm.devices.traits.Connectivity']?.status
@@ -426,31 +432,62 @@ def processCameraTraits(device, details) {
     def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
     imgRes?.width ? sendEvent(device, [name: 'imgWidth', value: imgRes.width]) : null
     imgRes?.height ? sendEvent(device, [name: 'imgHeight', value: imgRes.height]) : null   
+    def room = details?.parentRelations?.getAt(0)?.displayName
+    room ? sendEvent(device, [name: 'room', value: room]) : null  
 }
 
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
+    def triggerMotion = 0;
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
+            if (device.currentValue('activeChime') == 'true') {
+                triggerMotion = 1;
+            }
         }
-        device.processMotion()
-        deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+        if (key == 'sdm.devices.events.CameraPerson.Person') {
+            sendEvent(device, [name: 'pushed', value: 2, isStateChange: true])
+            if (device.currentValue('activePerson') == 'true') {
+                triggerMotion = 1;
+            }
+        }
+        if (key == 'sdm.devices.events.CameraMotion.Motion') {
+            sendEvent(device, [name: 'pushed', value: 3, isStateChange: true])
+            if (device.currentValue('activeMotion') == 'true') {
+                triggerMotion = 1;
+            }
+        }
+        if (key == 'sdm.devices.events.CameraSound.Sound') {
+            sendEvent(device, [name: 'pushed', value: 4, isStateChange: true])
+            if (device.currentValue('activeSound') == 'true') {
+                triggerMotion = 1;
+            }
+        }
+        if (triggerMotion == 1) {
+            device.processMotion()
+            deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+        }
     }
 }
 
 def createEventSubscription() {
-    def creds = getCredentials()
-    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
-    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
-    def contentType = 'application/json'
-    def body = [
-        topic: 'projects/sdm-prod/topics/enterprise-' + projectId,
-        pushConfig: [
-            pushEndpoint: getFullApiServerUrl() + '/events?access_token=' + state.accessToken
+    if (state.accessToken == null) {
+        createAccessToken()
+        def creds = getCredentials()
+        def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
+        def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+        def contentType = 'application/json'
+        def body = [
+            topic: 'projects/sdm-prod/topics/enterprise-' + projectId,
+            pushConfig: [
+                pushEndpoint: getFullApiServerUrl() + '/events?access_token=' + state.accessToken
+            ]
         ]
-    ]
-    def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
-    asynchttpPut(putResponse, params, [params: params])
+        def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+        asynchttpPut(putResponse, params, [params: params])
+    } else {
+        log.warn "Event subscription already exists."
+    }
 }
 
 def putResponse(resp, data) {
@@ -460,7 +497,7 @@ def putResponse(resp, data) {
     } else if (resp.hasError()) {
         log.error("createEventSubscription returned status code ${respCode} -- ${resp.getErrorJson()}")
     } else {
-        log.debug(resp.getJson())
+        logDebug(resp.getJson())
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
@@ -471,9 +508,9 @@ def putResponse(resp, data) {
 }
 
 def postEvents() {
-    log.debug('event received')
+    logDebug('event received')
     def dataString = new String(request.JSON?.message.data.decodeBase64())
-    log.debug(dataString)
+    logDebug(dataString)
     def dataJson = new JsonSlurper().parseText(dataString)
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
@@ -497,11 +534,11 @@ def postEvents() {
 
 void removeChildren() {
     def children = getChildDevices()
-    log.debug(children)
+    logDebug(children)
     children.each {
         if (it != null) {
-            log.debug(it)
-            log.debug(it.getDeviceNetworkId())
+            logDebug(it)
+            logDebug(it.getDeviceNetworkId())
             deleteChildDevice it.getDeviceNetworkId()
         }
     }
@@ -519,7 +556,7 @@ void deleteEventSubscription() {
 }
 
 def logToken() {
-    log.debug("Access Token: ${state.googleAccessToken}")
+    logDebug("Access Token: ${state.googleAccessToken}")
 }
 
 def getDeviceData(com.hubitat.app.DeviceWrapper device) {
@@ -572,8 +609,8 @@ def deviceSetTemperatureSetpoint(com.hubitat.app.DeviceWrapper device, heatPoint
         coolPoint = coolPoint ? fahrenheitToCelsius(coolPoint) : null
         heatPoint = heatPoint ? fahrenheitToCelsius(heatPoint) : null
     }
-    log.debug(coolPoint)
-    log.debug(heatPoint)
+    logDebug(coolPoint)
+    logDebug(heatPoint)
     if (coolPoint && heatPoint) {
         deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange', [coolCelsius: coolPoint, heatCelsius: heatPoint])
     } else if (coolPoint) {
@@ -618,7 +655,7 @@ def handlePostCommand(resp, data) {
         log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
     } else {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
-            log.debug(respJson)
+            logDebug(respJson)
             def uri = respJson.results.url
             def query = [ width: data.device.currentValue('imgWidth') ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
@@ -637,7 +674,7 @@ def handleImageGet(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 200) {
         def img = resp.getData()
-        log.debug(img.length())
+        logDebug(img.length())
         sendEvent(data.device, [name: 'rawImg', value: img])
         sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
 //        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
@@ -647,7 +684,7 @@ def handleImageGet(resp, data) {
 }
 
 def getDashboardImg() {
-    log.debug('get image')
+    logDebug('get image')
     def deviceId = params.deviceId
     def device = getChildDevice(deviceId)
     def img = device.currentValue('rawImg')
