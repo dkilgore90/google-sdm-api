@@ -45,3 +45,19 @@ Click on this link, and walk through the steps to authorize with Google.  When c
 Click the specified link to return to the App configuration page.  It will now display a **Discover** button
 
 Press the **Discover** button on the Google SDM API app page to discover your authorized Nest devices.
+
+## Features
+
+### Camera images
+The latest still image is downloaded when a device event is received (Doorbell, Camera, Display).  This can be displayed in a HE dashboard
+using the `attribute` tile.  Simply select the device, and the attribute to use is `image`.
+
+Note: this currently only works for *Local* dashboards -- support for cloud dashboards coming in a future update.
+
+### Motion "sensor"
+Any camera event will trigger a motion *Active* event.  Since the current API does not send another event when motion is no longer detected,
+a preferences entry is defined for each device, which determines the amount of time before the motion is deemed *Inactive*.  If another event
+is received before this timer expires, the *Inactive* transition is deferred for the specified interval.
+
+### Doorbell Chime
+The doorbell chime will generate a *pushed* event on `button 1` for the device.  This can be used for Rule Machine or Notification triggers.

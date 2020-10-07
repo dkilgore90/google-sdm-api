@@ -10,13 +10,25 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
+ *  version: 0.1.0
  */
 
 metadata {
     definition(name: 'Google Nest Camera', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-camera.groovy') {
         capability 'VideoCamera'
+        capability 'ImageCapture'
+        capability 'Refresh'
+        capability 'MotionSensor'
 
         attribute 'room', 'string'
+        attribute 'imgWidth', 'number'
+        attribute 'imgHeight', 'number'
+        attribute 'rawImg', 'string'
+        attribute 'lastEventTime', 'string'
+    }
+    
+    preferences {
+        input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
     }
 }
 
@@ -27,4 +39,24 @@ def updated() {
 }
 
 def uninstalled() {
+}
+
+def refresh() {
+    parent.getDeviceData(device)
+}
+
+def processMotion() {
+    device.sendEvent(name: 'motion', value: 'active')
+    if (minimumMotionTime == null) {
+        device.updateSetting('minimumMotionTime', 15)
+    }
+    runIn(minimumMotionTime, motionInactive, [overwrite: true])
+}
+
+def motionInactive() {
+    device.sendEvent(name: 'motion', value: 'inactive')
+}
+
+def take() {
+    log.warn('on-demand image capture is not supported')
 }

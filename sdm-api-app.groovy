@@ -12,6 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
+ *  version: 0.2.0
  */
 
 definition(
@@ -21,6 +22,7 @@ definition(
         description: 'Provides for discovery and control of Google Nest devices',
         importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-app.groovy',
         category: 'Discovery',
+        oauth: true,
         iconUrl: '',
         iconX2Url: '',
         iconX3Url: ''
@@ -42,6 +44,11 @@ mappings {
             GET: "handleAuthRedirect"
         ]
     }
+    path("/img/:deviceId") {
+        action: [
+            GET: "getDashboardImg"
+        ]
+    }
 }
 
 def mainPage() {
@@ -52,7 +59,7 @@ def mainPage() {
         }
         getAuthLink()
         getDiscoverButton()
-        
+
         listDiscoveredDevices()
         
         getDebugLink()
@@ -74,7 +81,7 @@ def debugPage() {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
         }
         section {
-            input 'deleteDevices', 'button', title: 'Delete', submitOnChange: true
+            input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
         }
     }
 }
@@ -96,7 +103,7 @@ def getAuthLink() {
         }
     } else {
         section {
-            paragraph "Authorization link is hidden until the required projectId and credentials.json inputs are provided."
+            paragraph "Authorization link is hidden until the required projectId and credentials.json inputs are provided, and App installation is saved by clicking 'Done'"
         }
     }
 }
@@ -209,7 +216,6 @@ def initialize() {
 
 def login(String authCode) {
     def creds = getCredentials()
-    log.debug(creds)
     def uri = 'https://www.googleapis.com/oauth2/v4/token'
     def query = [
                     client_id    : creds.client_id,
@@ -300,7 +306,7 @@ def handleDeviceList(resp, data) {
     } else if (respCode == 429 && data.backoffCount < 5) {
         log.warn('Hit rate limit, backoff and retry')
         data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryGet, [callback: handleDeviceList, data: data])
+        runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
         log.warn('Device-list response code: ' + respCode + ', body: ' + respJson)
     } else {
@@ -310,17 +316,8 @@ def handleDeviceList(resp, data) {
             device.id = it.name.tokenize('/')[-1]
             device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
             def dev = makeRealDevice(device)
-            if (dev) {
-                switch (it.type) {
-                case 'sdm.devices.types.THERMOSTAT':
-                    processThermostatTraits(dev, it)
-                    break
-                case 'sdm.devices.types.DOORBELL':
-                case 'sdm.devices.types.CAMERA':
-                case 'sdm.devices.types.DISPLAY':
-                    processCameraTraits(dev, it)
-                    break
-                }
+            if (dev != null) {
+                processTraits(dev, it)
             }
         }
     }
@@ -349,6 +346,8 @@ def makeRealDevice(device) {
 }
 
 def processTraits(device, details) {
+    def room = details.parentRelations?.getAt(0)?.displayName
+    room ? sendEvent(device, [name: 'room', value: room]) : null
     if (device.hasCapability('Thermostat')) {
         processThermostatTraits(device, details)
     } else {
@@ -401,13 +400,11 @@ def processThermostatTraits(device, details) {
         heatPoint = heatPoint ? celsiusToFahrenheit(heatPoint) : null
         temp = temp ? celsiusToFahrenheit(temp) : null
     }
-    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: ecoCoolPoint]) : null
-    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: ecoHeatPoint]) : null
-    coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: coolPoint]) : null
-    heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: heatPoint]) : null
-    temp ? sendEvent(device, [name: 'temperature', value: temp]) : null
-    def room = details?.parentRelations?.getAt(0)?.displayName
-    room ? sendEvent(device, [name: 'room', value: room]) : null
+    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: new Double(ecoCoolPoint).round(1)]) : null
+    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: new Double(ecoHeatPoint).round(1)]) : null
+    coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: new Double(coolPoint).round(1)]) : null
+    heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: new Double(heatPoint).round(1)]) : null
+    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1)]) : null
 }
 
 def translateNestAvailableModes(modes) {
@@ -423,11 +420,25 @@ def translateNestAvailableModes(modes) {
 }
 
 def processCameraTraits(device, details) {
-    
+    if (details.events) {
+        processCameraEvents(device, details.events)
+    }
+    def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
+    imgRes?.width ? sendEvent(device, [name: 'imgWidth', value: imgRes.width]) : null
+    imgRes?.height ? sendEvent(device, [name: 'imgHeight', value: imgRes.height]) : null   
+}
+
+def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
+    events.each { key, value -> 
+        if (key == 'sdm.devices.events.DoorbellChime.Chime') {
+            sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
+        }
+        device.processMotion()
+        deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+    }
 }
 
 def createEventSubscription() {
-    createAccessToken()
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
@@ -443,13 +454,14 @@ def createEventSubscription() {
 }
 
 def putResponse(resp, data) {
-    log.debug(resp.getStatus())
-    if (resp.hasError()) {
-        log.error(resp.getErrorJson())
+    def respCode = resp.getStatus()
+    if (respCode == 409) {
+        log.warn('createEventSubscription returned status code 409 -- subscription already exists')
+    } else if (resp.hasError()) {
+        log.error("createEventSubscription returned status code ${respCode} -- ${resp.getErrorJson()}")
     } else {
         log.debug(resp.getJson())
     }
-    log.debug(resp.getData())
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -465,8 +477,22 @@ def postEvents() {
     def dataJson = new JsonSlurper().parseText(dataString)
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
-    log.debug(device)
-    processTraits(device, dataJson.resourceUpdate)
+    if (device != null) {
+        def lastEvent = device.currentValue('lastEventTime')
+        def timeCompare
+        try {
+            timeCompare = toDateTime(dataJson.timestamp).compareTo(toDateTime(lastEvent))
+        } catch (java.text.ParseException ignored) {
+            //should only fail on first event -- e.g. lastEvent == null
+        }
+        if ( timeCompare > 0 || lastEvent == null ) {
+            sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
+            processTraits(device, dataJson.resourceUpdate)
+        } else {
+            log.warn("Received event out of order, refreshing device ${device}")
+            getDeviceData(device)
+        }
+    }
 }
 
 void removeChildren() {
@@ -516,7 +542,7 @@ def handleDeviceGet(resp, data) {
     } else if (respCode == 429 && data.backoffCount < 5) {
         log.warn('Hit rate limit, backoff and retry')
         data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryGet, [callback: handleDeviceGet, data: data])
+        runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
         log.error("Device-get response code: ${respCode}, body: ${respJson}")
     } else {
@@ -573,8 +599,9 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
+    def respJson
     try {
-        def respJson = resp.getJson()
+        respJson = resp.getJson()
     } catch (IllegalArgumentException ignored) {
         log.warn("executeCommand ${data.command}: cannot parse JSON from response")
     }
@@ -586,12 +613,43 @@ def handlePostCommand(resp, data) {
     } else if (respCode == 429 && data.backoffCount < 5) {
         log.warn('Hit rate limit, backoff and retry')
         data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryPost, [callback: handlePostCommand, data: data])
+        runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200) {
         log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
+    } else {
+        if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
+            log.debug(respJson)
+            def uri = respJson.results.url
+            def query = [ width: data.device.currentValue('imgWidth') ]
+            def headers = [ Authorization: "Basic ${respJson.results.token}" ]
+            def params = [uri: uri, headers: headers, query: query]
+            asynchttpGet(handleImageGet, params, [device: data.device])
+        }
     }
 }
 
 def handleBackoffRetryPost(map) {
-    asynchttpPost(map.callback, map.data.params, map.data)
+//disable backoff/retry for now
+//    asynchttpPost(map.callback, map.data.params, map.data)
+}
+
+def handleImageGet(resp, data) {
+    def respCode = resp.getStatus()
+    if (respCode == 200) {
+        def img = resp.getData()
+        log.debug(img.length())
+        sendEvent(data.device, [name: 'rawImg', value: img])
+        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
+//        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
+    } else {
+        log.error("image download failed for device ${data.device}, response code: ${respCode}")
+    }
+}
+
+def getDashboardImg() {
+    log.debug('get image')
+    def deviceId = params.deviceId
+    def device = getChildDevice(deviceId)
+    def img = device.currentValue('rawImg')
+    render contentType: 'image/jpeg', data: img.decodeBase64(), status: 200
 }
