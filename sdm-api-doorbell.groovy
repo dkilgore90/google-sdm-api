@@ -26,6 +26,7 @@ metadata {
         attribute 'imgHeight', 'number'
         attribute 'rawImg', 'string'
         attribute 'lastEventTime', 'string'
+        attribute 'lastEventType', 'string'
     }
     
     preferences {

@@ -434,6 +434,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
             sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
         }
         device.processMotion()
+        sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
         deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
     }
 }
@@ -639,7 +640,7 @@ def handleImageGet(resp, data) {
         def img = resp.getData()
         log.debug(img.length())
         sendEvent(data.device, [name: 'rawImg', value: img])
-        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
+        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()} />", isStateChange: true])
 //        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")
