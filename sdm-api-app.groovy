@@ -85,6 +85,9 @@ def debugPage() {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
         }
         section {
+            input 'eventUnsubscribe', 'button', title: 'Delete event subscription', submitOnChange: true
+        }
+        section {
             input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
         }
     }
@@ -277,6 +280,9 @@ def appButtonHandler(btn) {
         break
     case 'eventSubscribe':
         createEventSubscription()
+        break
+    case 'eventUnsubscribe':
+        deleteEventSubscription()
         break
     case 'deleteDevices':
         removeChildren()
