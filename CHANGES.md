@@ -4,6 +4,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 2020-10-07
 
+### sdm-api-app:0.2.2
+* Fix event timestamp comparison issue -- #12
+* Fix NPE in getWidthFromSize
+
 ###sdm-api-app:0.2.1
 * Preferences input for downloaded image size
 * Push lastEventType attribute update to camera devices
