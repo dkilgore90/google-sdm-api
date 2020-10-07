@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.0
+ *  version: 0.1.1
  */
 
 metadata {
@@ -26,6 +26,7 @@ metadata {
         attribute 'imgHeight', 'number'
         attribute 'rawImg', 'string'
         attribute 'lastEventTime', 'string'
+        attribute 'lastEventType', 'string'
     }
     
     preferences {

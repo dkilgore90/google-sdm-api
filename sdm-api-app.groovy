@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.0
+ *  version: 0.2.1
  */
 
 definition(
@@ -59,7 +59,11 @@ def mainPage() {
         }
         getAuthLink()
         getDiscoverButton()
-
+        
+        section {
+            input 'imgSize', 'enum', title: 'Image download size', required: false, submitOnChange: true, options: ['small', 'medium', 'large', 'max']
+        }
+        
         listDiscoveredDevices()
         
         getDebugLink()
@@ -79,6 +83,9 @@ def debugPage() {
         }
         section {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
+        }
+        section {
+            input 'eventUnsubscribe', 'button', title: 'Delete event subscription', submitOnChange: true
         }
         section {
             input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
@@ -274,6 +281,9 @@ def appButtonHandler(btn) {
     case 'eventSubscribe':
         createEventSubscription()
         break
+    case 'eventUnsubscribe':
+        deleteEventSubscription()
+        break
     case 'deleteDevices':
         removeChildren()
         break
@@ -434,6 +444,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
             sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
         }
         device.processMotion()
+        sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
         deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
     }
 }
@@ -620,11 +631,29 @@ def handlePostCommand(resp, data) {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
             log.debug(respJson)
             def uri = respJson.results.url
-            def query = [ width: data.device.currentValue('imgWidth') ]
+            def query = [ width: getWidthFromSize() ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
         }
+    }
+}
+
+def getWidthFromSize() {
+    switch (imgSize) {
+    case 'small':
+        return 240
+        break
+    case 'medium':
+        return 480
+        break
+    case 'large':
+        return 960
+        break
+    case 'max':
+    default:
+        return data.device.currentValue('imgWidth')
+        break
     }
 }
 
@@ -639,7 +668,7 @@ def handleImageGet(resp, data) {
         def img = resp.getData()
         log.debug(img.length())
         sendEvent(data.device, [name: 'rawImg', value: img])
-        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
+        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()} />", isStateChange: true])
 //        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")

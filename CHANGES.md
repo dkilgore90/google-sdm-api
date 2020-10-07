@@ -2,6 +2,23 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-07
+
+###sdm-api-app:0.2.1
+* Preferences input for downloaded image size
+* Push lastEventType attribute update to camera devices
+* Enhancement to force dynamic image refresh in dashboards
+* New debug button: Delete Event Subscription
+
+### sdm-api-doorbell:0.1.1
+* lastEventType attribute
+
+### sdm-api-camera:0.1.1
+* lastEventType attribute
+
+### sdm-api-display:0.1.1
+* lastEventType attribute
+
 ## 2020-10-06
 
 ### sdm-api-app:0.2.0
