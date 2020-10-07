@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.1
+ *  version: 0.2.2
  */
 
 definition(
@@ -492,7 +492,7 @@ def postEvents() {
         def lastEvent = device.currentValue('lastEventTime')
         def timeCompare
         try {
-            timeCompare = toDateTime(dataJson.timestamp).compareTo(toDateTime(lastEvent))
+            timeCompare = (dataJson.timestamp).compareTo(lastEvent)
         } catch (java.text.ParseException ignored) {
             //should only fail on first event -- e.g. lastEvent == null
         }
@@ -631,7 +631,7 @@ def handlePostCommand(resp, data) {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
             log.debug(respJson)
             def uri = respJson.results.url
-            def query = [ width: getWidthFromSize() ]
+            def query = [ width: getWidthFromSize(data.device) ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
@@ -639,7 +639,7 @@ def handlePostCommand(resp, data) {
     }
 }
 
-def getWidthFromSize() {
+def getWidthFromSize(device) {
     switch (imgSize) {
     case 'small':
         return 240
@@ -652,7 +652,7 @@ def getWidthFromSize() {
         break
     case 'max':
     default:
-        return data.device.currentValue('imgWidth')
+        return device.currentValue('imgWidth')
         break
     }
 }
