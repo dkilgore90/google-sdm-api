@@ -11,6 +11,13 @@
  *  Software is provided without warranty and your use of it is at your own risk.
  *
  *  version: 0.1.0
+ *
+ *  Button / Motion Triggers
+ *      1 - sdm.devices.traits.DoorbellChime
+ *      2 - sdm.devices.traits.CameraPerson
+ *      3 - sdm.devices.traits.CameraMotion
+ *      4 - sdm.devices.traits.CameraSound
+ *
  */
 
 metadata {

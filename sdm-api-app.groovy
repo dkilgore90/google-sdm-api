@@ -14,8 +14,6 @@ import groovy.json.JsonSlurper
  *
  *  version: 0.2.0 
  *
- *  2020-10-05 - Lyle Pakula - Built out doorbell functionality
- *
  */
 
 definition(
