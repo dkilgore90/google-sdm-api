@@ -17,7 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 * Motion support (active for configurable period after event)
 * Image attribute available for dashboard tile
 
-### sdm-api-doorbell:0.1.0
+### sdm-api-camera:0.1.0
 * Motion support (active for configurable period after event)
 * Image attribute available for dashboard tile
 
