@@ -59,7 +59,11 @@ def mainPage() {
         }
         getAuthLink()
         getDiscoverButton()
-
+        
+        section {
+            input 'imgSize', 'enum', title: 'Image download size', required: false, submitOnChange: true, options: ['small', 'medium', 'large', 'max']
+        }
+        
         listDiscoveredDevices()
         
         getDebugLink()
@@ -621,11 +625,29 @@ def handlePostCommand(resp, data) {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
             log.debug(respJson)
             def uri = respJson.results.url
-            def query = [ width: data.device.currentValue('imgWidth') ]
+            def query = [ width: getWidthFromSize() ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
         }
+    }
+}
+
+def getWidthFromSize() {
+    switch (imgSize) {
+    case 'small':
+        return 240
+        break
+    case 'medium':
+        return 480
+        break
+    case 'large':
+        return 960
+        break
+    case 'max':
+    default:
+        return data.device.currentValue('imgWidth')
+        break
     }
 }
 
