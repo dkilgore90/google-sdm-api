@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.2
+ *  version: 0.2.3
  */
 
 definition(
@@ -490,13 +490,11 @@ def postEvents() {
     def device = getChildDevice(deviceId)
     if (device != null) {
         def lastEvent = device.currentValue('lastEventTime')
-        def timeCompare
-        try {
-            timeCompare = (dataJson.timestamp).compareTo(lastEvent)
-        } catch (java.text.ParseException ignored) {
-            //should only fail on first event -- e.g. lastEvent == null
+        if (lastEvent == null) {
+            lastEvent = '1970-01-01T00:00:00.000Z'
         }
-        if ( timeCompare > 0 || lastEvent == null ) {
+        timeCompare = (dataJson.timestamp).compareTo(lastEvent)
+        if ( timeCompare >= 0) {
             sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
             processTraits(device, dataJson.resourceUpdate)
         } else {
