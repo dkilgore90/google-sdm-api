@@ -2,13 +2,19 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-08
+
+### sdm-api-app:0.2.3
+* [#15](https://github.com/dkilgore90/google-sdm-api/issues/15) - Evemt timestamp comparison -- allow multiple events with same timestamp
+* [#16](https://github.com/dkilgore90/google-sdm-api/issues/16) - Fix NPE in timestamp comparison when no previous timestamp has been recorded -- introduced in fix for [#12](https://github.com/dkilgore90/google-sdm-api/issues/12)
+
 ## 2020-10-07
 
 ### sdm-api-app:0.2.2
-* Fix event timestamp comparison issue -- #12
+* [#12](https://github.com/dkilgore90/google-sdm-api/issues/12) - Fix event timestamp comparison issue
 * Fix NPE in getWidthFromSize
 
-###sdm-api-app:0.2.1
+### sdm-api-app:0.2.1
 * Preferences input for downloaded image size
 * Push lastEventType attribute update to camera devices
 * Enhancement to force dynamic image refresh in dashboards
