@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-09
+
+### sdm-api-app:0.2.4
+* Handle and log HTTP Error responses
+
 ## 2020-10-08
 
 ### sdm-api-app:0.2.3
