@@ -252,7 +252,7 @@ def refreshLogin() {
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
     } catch (groovyx.net.http.HttpResponseException e) {
-        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
+        log.error("Login refresh failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
