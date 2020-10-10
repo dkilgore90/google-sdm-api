@@ -234,8 +234,8 @@ def login(String authCode) {
     def params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
-    } catch (Exception e) {
-        log.error("Login failed: ${e.toString()}")
+    } catch (groovyx.net.http.HttpResponseException e) {
+        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
@@ -251,8 +251,8 @@ def refreshLogin() {
     def params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
-    } catch (Exception e) {
-        log.error("Login refresh failed: ${e.toString()}")
+    } catch (groovyx.net.http.HttpResponseException e) {
+        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
@@ -607,12 +607,6 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
-    def respJson
-    try {
-        respJson = resp.getJson()
-    } catch (IllegalArgumentException ignored) {
-        log.warn("executeCommand ${data.command}: cannot parse JSON from response")
-    }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
