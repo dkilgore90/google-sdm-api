@@ -10,12 +10,18 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.1
+ *  version: 0.1.2
  */
 
 metadata {
     definition(name: 'Google Nest Thermostat', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-thermostat.groovy') {
+        capability 'TemperatureMeasurement'
         capability 'Thermostat'
+        capability 'ThermostatCoolingSetpoint'
+        capability 'ThermostatHeatingSetpoint'
+        capability 'ThermostatFanMode'
+        capability 'ThermostatMode'
+        capability 'ThermostatOperatingState'
         capability 'RelativeHumidityMeasurement'
         capability 'Refresh'
 
@@ -32,6 +38,10 @@ metadata {
         command 'setThermostatFanMode', [[name: 'fanmode', type: 'ENUM', constraints: ['auto', 'on']], [name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setEcoMode', [[name: 'ecoMode*', type: 'ENUM', constraints: ['OFF', 'MANUAL_ECO']]]
         command 'setHeatCoolSetpoint', [[name: 'heatPoint*', type: 'NUMBER'], [name: 'coolPoint*', type: 'NUMBER']]
+    }
+    
+    preferences {
+        input 'defaultFanTime', 'number', title: 'Default Fan Time (s)', 'description': 'default length of time (in seconds) that the fan will run for `fanOn`, if an explicit time is not specified', required: true, defaultValue: 900, range: "1..43200"
     }
 }
 
@@ -71,7 +81,11 @@ def fanAuto() {
     parent.deviceSetFanMode(device, 'OFF')
 }
 
-def fanOn(duration=900) {
+def fanOn(duration=null) {
+    if (defaultFanTime == null) {
+        device.updateSetting('defaultFanTime', 900)
+    }
+    duration = duration ?: defaultFanTime
     def sDuration = duration.toString() + 's'
     parent.deviceSetFanMode(device, 'ON', sDuration)
 }
@@ -116,7 +130,11 @@ def setThermostatMode(mode) {
 }
 
 def setThermostatFanMode(mode, duration=null) {
-    def sDuration = duration ? duration.toString() + 's' : null
+    if (defaultFanTime == null) {
+        device.updateSetting('defaultFanTime', 900)
+    }
+    duration = duration ?: defaultFanTime
+    def sDuration = mode == 'auto' ? null : duration.toString() + 's'
     parent.deviceSetFanMode(device, mode == 'auto' ? 'OFF' : 'ON', duration)
 }
 
