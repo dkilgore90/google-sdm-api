@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.3
+ *  version: 0.2.4
  */
 
 definition(
@@ -234,8 +234,8 @@ def login(String authCode) {
     def params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
-    } catch (Exception e) {
-        log.error("Login failed: ${e.toString()}")
+    } catch (groovyx.net.http.HttpResponseException e) {
+        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
@@ -251,8 +251,8 @@ def refreshLogin() {
     def params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
-    } catch (Exception e) {
-        log.error("Login refresh failed: ${e.toString()}")
+    } catch (groovyx.net.http.HttpResponseException e) {
+        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
@@ -307,7 +307,6 @@ private void discover() {
 
 def handleDeviceList(resp, data) {
     def respCode = resp.getStatus()
-    def respJson = resp.getJson()
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -318,8 +317,9 @@ def handleDeviceList(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
-        log.warn('Device-list response code: ' + respCode + ', body: ' + respJson)
+        log.warn("Device-list response code: ${respCode}, body: ${resp.getErrorJson()}")
     } else {
+        def respJson = resp.getJson()
         respJson.devices.each {
             def device = [:]
             device.type = it.type.tokenize('.')[-1].toLowerCase().capitalize()
@@ -542,7 +542,6 @@ def getDeviceData(com.hubitat.app.DeviceWrapper device) {
 
 def handleDeviceGet(resp, data) {
     def respCode = resp.getStatus()
-    def respJson = resp.getJson()
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -553,9 +552,9 @@ def handleDeviceGet(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
-        log.error("Device-get response code: ${respCode}, body: ${respJson}")
+        log.error("Device-get response code: ${respCode}, body: ${resp.getErrorJson()}")
     } else {
-        processTraits(data.device, respJson)
+        processTraits(data.device, resp.getJson())
     }
 }
 
@@ -608,12 +607,6 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
-    def respJson
-    try {
-        respJson = resp.getJson()
-    } catch (IllegalArgumentException ignored) {
-        log.warn("executeCommand ${data.command}: cannot parse JSON from response")
-    }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -624,9 +617,10 @@ def handlePostCommand(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200) {
-        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
+        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${resp.getErrorJson()}")
     } else {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
+            def respJson = resp.getJson()
             log.debug(respJson)
             def uri = respJson.results.url
             def query = [ width: getWidthFromSize(data.device) ]
