@@ -83,3 +83,17 @@ above **Subscribe to Events** button to re-create your event stream.
 This button will delete all child devices from HE, which represent your physical Nest devices.  Useful if you need/want to clean up and
 start over, without needing to re-authorize with Google.  You can follow this up with the **Discover** button on the main App page to
 re-discover your devices.
+
+## Troubleshooting
+
+### Google Auth link/button not showing up
+The App checks that all required prerequisites are present before revealing this button. This includes the following:
+
+#### App Settings
+* Google Device Access - Project ID
+* Google credentials.json
+
+#### Application State
+* accessToken -- this _should_ be created automatically when the app is first installed
+
+You can validate these entries by going to the App page in HE, then click on the settings **gear** icon in the top-right corner.
