@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.0 
+ *  version: 0.2.3
  *
  */
 
@@ -66,7 +66,11 @@ def mainPage() {
         }
         getAuthLink()
         getDiscoverButton()
-
+        
+        section {
+            input 'imgSize', 'enum', title: 'Image download size', required: false, submitOnChange: true, options: ['small', 'medium', 'large', 'max']
+        }
+        
         listDiscoveredDevices()
         
         getDebugLink()
@@ -86,6 +90,9 @@ def debugPage() {
         }
         section {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
+        }
+        section {
+            input 'eventUnsubscribe', 'button', title: 'Delete event subscription', submitOnChange: true
         }
         section {
             input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
@@ -281,6 +288,9 @@ def appButtonHandler(btn) {
     case 'eventSubscribe':
         createEventSubscription()
         break
+    case 'eventUnsubscribe':
+        deleteEventSubscription()
+        break
     case 'deleteDevices':
         removeChildren()
         break
@@ -464,6 +474,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
                 triggerMotion = 1;
             }
         }
+        sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
         if (triggerMotion == 1) {
             device.processMotion()
             deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
@@ -517,13 +528,11 @@ def postEvents() {
     def device = getChildDevice(deviceId)
     if (device != null) {
         def lastEvent = device.currentValue('lastEventTime')
-        def timeCompare
-        try {
-            timeCompare = toDateTime(dataJson.timestamp).compareTo(toDateTime(lastEvent))
-        } catch (java.text.ParseException ignored) {
-            //should only fail on first event -- e.g. lastEvent == null
+        if (lastEvent == null) {
+            lastEvent = '1970-01-01T00:00:00.000Z'
         }
-        if ( timeCompare > 0 || lastEvent == null ) {
+        timeCompare = (dataJson.timestamp).compareTo(lastEvent)
+        if ( timeCompare >= 0) {
             sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
             processTraits(device, dataJson.resourceUpdate)
         } else {
@@ -658,11 +667,29 @@ def handlePostCommand(resp, data) {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
             logDebug(respJson)
             def uri = respJson.results.url
-            def query = [ width: data.device.currentValue('imgWidth') ]
+            def query = [ width: getWidthFromSize(data.device) ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
         }
+    }
+}
+
+def getWidthFromSize(device) {
+    switch (imgSize) {
+    case 'small':
+        return 240
+        break
+    case 'medium':
+        return 480
+        break
+    case 'large':
+        return 960
+        break
+    case 'max':
+    default:
+        return device.currentValue('imgWidth')
+        break
     }
 }
 
@@ -677,7 +704,7 @@ def handleImageGet(resp, data) {
         def img = resp.getData()
         logDebug(img.length())
         sendEvent(data.device, [name: 'rawImg', value: img])
-        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
+        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()} />", isStateChange: true])
 //        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")
