@@ -4,6 +4,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 2020-10-09
 
+### sdm-api-thermostat:0.1.2
+* Make the default fan timer for fanOn a configurable setting
+
 ### sdm-api-app:0.2.4
 * Handle and log HTTP Error responses
 
