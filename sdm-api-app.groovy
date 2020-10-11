@@ -487,7 +487,12 @@ def postEvents() {
         if (lastEvent == null) {
             lastEvent = '1970-01-01T00:00:00.000Z'
         }
-        timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
+        def timeCompare = 0
+        try {
+            timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
+        } catch (java.text.ParseException e) {
+            //don't expect this to ever fail - catch for safety only
+        }
         if ( timeCompare >= 0) {
             def utcTimestamp = toDateTime(dataJson.timestamp)
             sendEvent(device, [name: 'lastEventTime', value: utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone)])
