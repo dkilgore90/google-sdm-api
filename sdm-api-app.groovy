@@ -307,7 +307,7 @@ def handleDeviceList(resp, data) {
         data.isRetry = true
         asynchttpGet(handleDeviceList, data.params, data)
     } else if (respCode == 429 && data.backoffCount < 5) {
-        log.warn('Hit rate limit, backoff and retry')
+        log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
@@ -487,9 +487,10 @@ def postEvents() {
         if (lastEvent == null) {
             lastEvent = '1970-01-01T00:00:00.000Z'
         }
-        timeCompare = (dataJson.timestamp).compareTo(lastEvent)
+        timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
         if ( timeCompare >= 0) {
-            sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
+            def utcTimestamp = toDateTime(dataJson.timestamp)
+            sendEvent(device, [name: 'lastEventTime', value: utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone)])
             processTraits(device, dataJson.resourceUpdate)
         } else {
             log.warn("Received event out of order, refreshing device ${device}")
@@ -542,7 +543,7 @@ def handleDeviceGet(resp, data) {
         data.isRetry = true
         asynchttpGet(handleDeviceGet, data.params, data)
     } else if (respCode == 429 && data.backoffCount < 5) {
-        log.warn('Hit rate limit, backoff and retry')
+        log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
@@ -605,7 +606,7 @@ def handlePostCommand(resp, data) {
         data.isRetry = true
         asynchttpPost(handlePostCommand, data.params, data)
     } else if (respCode == 429 && data.backoffCount < 5) {
-        log.warn('Hit rate limit, backoff and retry')
+        log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200) {
@@ -659,9 +660,9 @@ def handleImageGet(resp, data) {
 }
 
 def getDashboardImg() {
-    logDebug('Rendering image from raw data')
     def deviceId = params.deviceId
     def device = getChildDevice(deviceId)
+    logDebug("Rendering image from raw data for device: ${device}")
     def img = device.currentValue('rawImg')
     render contentType: 'image/jpeg', data: img.decodeBase64(), status: 200
 }
