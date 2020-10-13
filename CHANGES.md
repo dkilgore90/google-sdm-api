@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-12
+
+### sdm-api-app:0.2.5
+* Logging cleanup
+* Add settings toggle to enable/disable debug logs
+* lastEventTime in local time zone
+
 ## 2020-10-09
 
 ### sdm-api-thermostat:0.1.2

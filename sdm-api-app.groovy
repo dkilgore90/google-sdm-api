@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.4
+ *  version: 0.2.5
  */
 
 definition(
@@ -487,7 +487,7 @@ def postEvents() {
         if (lastEvent == null) {
             lastEvent = '1970-01-01T00:00:00.000Z'
         }
-        def timeCompare = 0
+        def timeCompare = -1
         try {
             timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
         } catch (java.text.ParseException e) {
@@ -593,7 +593,12 @@ def deviceSetEcoMode(com.hubitat.app.DeviceWrapper device, String mode) {
 }
 
 def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map cmdParams) {
-    log.info("Sending ${command} to ${device} with params: ${cmdParams}")
+    if (command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
+        //log GenerateImage at debug as it is triggered automatically
+        logDebug("Sending ${command} to ${device} with params: ${cmdParams}")
+    } else {
+        log.info("Sending ${command} to ${device} with params: ${cmdParams}")
+    }
     def deviceId = device.getDeviceNetworkId()
     def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/devices/' + deviceId + ':executeCommand'
     def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
