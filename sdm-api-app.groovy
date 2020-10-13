@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.0 
+ *  version: 0.2.4 
  *
  */
 
@@ -66,8 +66,15 @@ def mainPage() {
         }
         getAuthLink()
         getDiscoverButton()
-
+        
+        section {
+            input 'imgSize', 'enum', title: 'Image download size', required: false, submitOnChange: true, options: ['small', 'medium', 'large', 'max']
+        }
         listDiscoveredDevices()
+        
+        section {
+			input name: 'debugOutput', type: 'bool', title: 'Enable Debug Logging?', defaultValue: false
+		}
         
         getDebugLink()
     }
@@ -86,6 +93,9 @@ def debugPage() {
         }
         section {
             input 'eventSubscribe', 'button', title: 'Subscribe to Events', submitOnChange: true
+        }
+        section {
+            input 'eventUnsubscribe', 'button', title: 'Delete event subscription', submitOnChange: true
         }
         section {
             input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
@@ -234,8 +244,8 @@ def login(String authCode) {
     def params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
-    } catch (Exception e) {
-        log.error("Login failed: ${e.toString()}")
+    } catch (groovyx.net.http.HttpResponseException e) {
+        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
@@ -251,8 +261,8 @@ def refreshLogin() {
     def params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
-    } catch (Exception e) {
-        log.error("Login refresh failed: ${e.toString()}")
+    } catch (groovyx.net.http.HttpResponseException e) {
+        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
     }
 }
 
@@ -281,6 +291,9 @@ def appButtonHandler(btn) {
     case 'eventSubscribe':
         createEventSubscription()
         break
+    case 'eventUnsubscribe':
+        deleteEventSubscription()
+        break
     case 'deleteDevices':
         removeChildren()
         break
@@ -304,7 +317,6 @@ private void discover() {
 
 def handleDeviceList(resp, data) {
     def respCode = resp.getStatus()
-    def respJson = resp.getJson()
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -315,8 +327,9 @@ def handleDeviceList(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
-        log.warn('Device-list response code: ' + respCode + ', body: ' + respJson)
+        log.warn("Device-list response code: ${respCode}, body: ${resp.getErrorJson()}")
     } else {
+        def respJson = resp.getJson()
         respJson.devices.each {
             def device = [:]
             device.type = it.type.tokenize('.')[-1].toLowerCase().capitalize()
@@ -438,35 +451,46 @@ def processCameraTraits(device, details) {
 }
 
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
-    def triggerMotion = 0;
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
             if (device.currentValue('activeChime') == 'true') {
-                triggerMotion = 1;
+                device.processMotion()
+                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+            }
+            if (device.currentValue('imageChime') == 'true') {
+                deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
             }
         }
         if (key == 'sdm.devices.events.CameraPerson.Person') {
             sendEvent(device, [name: 'pushed', value: 2, isStateChange: true])
             if (device.currentValue('activePerson') == 'true') {
-                triggerMotion = 1;
+                device.processMotion()
+                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+            }
+            if (device.currentValue('imagePerson') == 'true') {
+                deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
             }
         }
         if (key == 'sdm.devices.events.CameraMotion.Motion') {
             sendEvent(device, [name: 'pushed', value: 3, isStateChange: true])
             if (device.currentValue('activeMotion') == 'true') {
-                triggerMotion = 1;
+                device.processMotion()
+                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+            }
+            if (device.currentValue('imageMotion') == 'true') {
+                deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
             }
         }
         if (key == 'sdm.devices.events.CameraSound.Sound') {
             sendEvent(device, [name: 'pushed', value: 4, isStateChange: true])
             if (device.currentValue('activeSound') == 'true') {
-                triggerMotion = 1;
+                device.processMotion()
+                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
             }
-        }
-        if (triggerMotion == 1) {
-            device.processMotion()
-            deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+            if (device.currentValue('imageSound') == 'true') {
+                deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+            }
         }
     }
 }
@@ -517,17 +541,15 @@ def postEvents() {
     def device = getChildDevice(deviceId)
     if (device != null) {
         def lastEvent = device.currentValue('lastEventTime')
-        def timeCompare
-        try {
-            timeCompare = toDateTime(dataJson.timestamp).compareTo(toDateTime(lastEvent))
-        } catch (java.text.ParseException ignored) {
-            //should only fail on first event -- e.g. lastEvent == null
+        if (lastEvent == null) {
+            lastEvent = '1970-01-01T00:00:00.000Z'
         }
-        if ( timeCompare > 0 || lastEvent == null ) {
+        timeCompare = (dataJson.timestamp).compareTo(lastEvent)
+        if ( timeCompare >= 0) {
             sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
             processTraits(device, dataJson.resourceUpdate)
         } else {
-            log.warn("Received event out of order, refreshing device ${device}")
+            log.warn("Received event out of order, refreshing device ${device}. Time received: ${dataJson.timestamp}.  Previous Event: ${lastEvent}")
             getDeviceData(device)
         }
     }
@@ -571,7 +593,6 @@ def getDeviceData(com.hubitat.app.DeviceWrapper device) {
 
 def handleDeviceGet(resp, data) {
     def respCode = resp.getStatus()
-    def respJson = resp.getJson()
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -582,9 +603,9 @@ def handleDeviceGet(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
-        log.error("Device-get response code: ${respCode}, body: ${respJson}")
+        log.error("Device-get response code: ${respCode}, body: ${resp.getErrorJson()}")
     } else {
-        processTraits(data.device, respJson)
+        processTraits(data.device, resp.getJson())
     }
 }
 
@@ -637,12 +658,6 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
-    def respJson
-    try {
-        respJson = resp.getJson()
-    } catch (IllegalArgumentException ignored) {
-        log.warn("executeCommand ${data.command}: cannot parse JSON from response")
-    }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         initialize()
@@ -653,16 +668,35 @@ def handlePostCommand(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200) {
-        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respJson}")
+        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${resp.getErrorJson()}")
     } else {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
+	    def respJson = resp.getJson()
             logDebug(respJson)
             def uri = respJson.results.url
-            def query = [ width: data.device.currentValue('imgWidth') ]
+            def query = [ width: getWidthFromSize(data.device) ]
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
         }
+    }
+}
+
+def getWidthFromSize(device) {
+    switch (imgSize) {
+    case 'small':
+        return 240
+        break
+    case 'medium':
+        return 480
+        break
+    case 'large':
+        return 960
+        break
+    case 'max':
+    default:
+        return device.currentValue('imgWidth')
+        break
     }
 }
 
@@ -677,7 +711,7 @@ def handleImageGet(resp, data) {
         def img = resp.getData()
         logDebug(img.length())
         sendEvent(data.device, [name: 'rawImg', value: img])
-        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken} />", isStateChange: true])
+        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()} />", isStateChange: true])
 //        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")

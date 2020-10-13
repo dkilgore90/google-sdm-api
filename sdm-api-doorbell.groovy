@@ -11,6 +11,8 @@
  *  Software is provided without warranty and your use of it is at your own risk.
  *
  *  version: 0.1.0
+ *
+ *  2020-10-05 - Lyle Pakula - Built out functionality
  * 
  *  Button / Motion Triggers
  *      1 - sdm.devices.traits.DoorbellChime
@@ -22,7 +24,7 @@
 
 metadata {
     definition(name: 'Google Nest Doorbell', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-doorbell.groovy') {
-        capability 'VideoCamera'
+        //capability 'VideoCamera'
         capability 'PushableButton'
         capability 'ImageCapture'
         capability 'Refresh'
@@ -33,20 +35,29 @@ metadata {
         attribute 'imgHeight', 'number'
         attribute 'rawImg', 'string'
         attribute 'lastEventTime', 'string'
+		attribute 'lastEventType', 'string'
         attribute 'activeChime', 'bool'
         attribute 'activePerson', 'bool'
         attribute 'activeMotion', 'bool'
         attribute 'activeSound', 'bool'
+        attribute 'imageChime', 'bool'
+        attribute 'imagePerson', 'bool'
+        attribute 'imageMotion', 'bool'
+        attribute 'imageSound', 'bool'        
     }
     
     preferences {
-        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
-        input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
-
         input name: "activeChimeInput", type: "bool", title: "Trigger motion on chime?", defaultValue: false
         input name: "activePersonInput", type: "bool", title: "Trigger motion on person?", defaultValue: false
         input name: "activeMotionInput", type: "bool", title: "Trigger motion on motion?", defaultValue: false
         input name: "activeSoundInput", type: "bool", title: "Trigger motion on sound?", defaultValue: false
+        input name: "imageChimeInput", type: "bool", title: "Trigger image on chime?", defaultValue: false
+        input name: "imagePersonInput", type: "bool", title: "Trigger image on person?", defaultValue: false
+        input name: "imageMotionInput", type: "bool", title: "Trigger image on motion?", defaultValue: false
+        input name: "imageSoundInput", type: "bool", title: "Trigger image on sound?", defaultValue: false
+
+        input name: "minimumMotionTime", type: "number", title: "Motion sensor on time (sec)", required: true, defaultValue: 15
+        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
 	}    
 }
 
@@ -71,6 +82,10 @@ def updated() {
     sendEvent(name:"activePerson", value:activePersonInput)
     sendEvent(name:"activeMotion", value:activeMotionInput)
     sendEvent(name:"activeSound", value:activeSoundInput)
+    sendEvent(name:"imageChime", value:imageChimeInput)
+    sendEvent(name:"imagePerson", value:imagePersonInput)
+    sendEvent(name:"imageMotion", value:imageMotionInput)
+    sendEvent(name:"imageSound", value:imageSoundInput)    
     motionInactive()
 }
 
