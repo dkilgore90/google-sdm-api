@@ -2,6 +2,48 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-12
+
+### sdm-api-app:0.2.5
+* Logging cleanup
+* Add settings toggle to enable/disable debug logs
+* lastEventTime in local time zone
+
+## 2020-10-09
+
+### sdm-api-thermostat:0.1.2
+* Make the default fan timer for fanOn a configurable setting
+
+### sdm-api-app:0.2.4
+* Handle and log HTTP Error responses
+
+## 2020-10-08
+
+### sdm-api-app:0.2.3
+* [#15](https://github.com/dkilgore90/google-sdm-api/issues/15) - Evemt timestamp comparison -- allow multiple events with same timestamp
+* [#16](https://github.com/dkilgore90/google-sdm-api/issues/16) - Fix NPE in timestamp comparison when no previous timestamp has been recorded -- introduced in fix for [#12](https://github.com/dkilgore90/google-sdm-api/issues/12)
+
+## 2020-10-07
+
+### sdm-api-app:0.2.2
+* [#12](https://github.com/dkilgore90/google-sdm-api/issues/12) - Fix event timestamp comparison issue
+* Fix NPE in getWidthFromSize
+
+### sdm-api-app:0.2.1
+* Preferences input for downloaded image size
+* Push lastEventType attribute update to camera devices
+* Enhancement to force dynamic image refresh in dashboards
+* New debug button: Delete Event Subscription
+
+### sdm-api-doorbell:0.1.1
+* lastEventType attribute
+
+### sdm-api-camera:0.1.1
+* lastEventType attribute
+
+### sdm-api-display:0.1.1
+* lastEventType attribute
+
 ## 2020-10-06
 
 ### sdm-api-app:0.2.0

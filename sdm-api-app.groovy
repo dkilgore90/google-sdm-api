@@ -12,8 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  2020-10-05 - Lyle Pakula - Built out doorbell functionality
- *
+ *  version: 0.2.5
  */
 
 definition(
