@@ -198,13 +198,15 @@ def mainPageLink() {
 
 def updated() {
     log.info 'Google SDM API updating'
-    initialize()
+    rescheduleLogin()
+    subscribe(location, 'systemStart', initialize)
 }
 
 def installed() {
     log.info 'Google SDM API installed'
     //initialize()
     createAccessToken()
+    subscribe(location, 'systemStart', initialize)
 }
 
 def uninstalled() {
@@ -214,10 +216,18 @@ def uninstalled() {
     unschedule()
 }
 
-def initialize() {
+def initialize(evt) {
+    log.debug(evt)
+    rescheduleLogin()
+    refreshAll()
+}
+
+def rescheduleLogin() {
     unschedule()
-    refreshLogin()
-    runEvery1Hour refreshLogin
+    if (state?.googleRefreshToken) {
+        refreshLogin()
+        runEvery1Hour refreshLogin
+    }
 }
 
 def login(String authCode) {
@@ -310,13 +320,13 @@ def handleDeviceList(resp, data) {
         }
         if (respCode == 401 && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
-            initialize()
+            rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceList, data.params, data)
         } else if (respCode == 429 && data.backoffCount < 5) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
-            runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+            //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.warn("Device-list response code: ${respCode}, body: ${respError}")
         }
@@ -493,7 +503,7 @@ def putResponse(resp, data) {
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
-        initialize()
+        rescheduleLogin()
         data.isRetry = true
         asynchttpPut(handlePostCommand, data.params, data)
     }
@@ -504,14 +514,26 @@ def postEvents() {
     def dataString = new String(request.JSON?.message.data.decodeBase64())
     logDebug(dataString)
     def dataJson = new JsonSlurper().parseText(dataString)
-    def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
-    def device = getChildDevice(deviceId)
-    if (device != null) {
-        // format back to millisecond decimal places in case the timestamp has micro-second resolution
-        int periodIndex = dataJson.timestamp.lastIndexOf('.')
+    // format back to millisecond decimal places in case the timestamp has micro-second resolution
+    int periodIndex = dataJson.timestamp.lastIndexOf('.')
+    if (periodIndex) {
         dataJson.timestamp = dataJson.timestamp.substring(0, (periodIndex + 4))
         dataJson.timestamp = dataJson.timestamp+"Z" 
-        
+    } else {
+        log.warn("unexpected timestamp resolution: ${dataJson.timestamp}")
+    }
+
+    try {
+        if (toDateTime(dataJson.timestamp) < new Date(state.lastStartup)) {
+            logDebug("Dropping event as its timestamp ${dataJson.timestamp} is before lastStartup ${state.lastStartup}")
+            return
+        }
+    } catch (java.text.ParseException e) {
+        log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastStartup: ${state.lastStartup}")
+    }
+    def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
+    def device = getChildDevice(deviceId)
+    if (device != null) {        
         def lastEvent = device.currentValue('lastEventTime')
         if (lastEvent == null) {
             lastEvent = '1970-01-01T00:00:00.000Z'
@@ -521,6 +543,7 @@ def postEvents() {
             timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
         } catch (java.text.ParseException e) {
             //don't expect this to ever fail - catch for safety only
+            log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent}")
         }
         if ( timeCompare >= 0) {
             def utcTimestamp = toDateTime(dataJson.timestamp)
@@ -559,6 +582,17 @@ def logToken() {
     log.debug("Access Token: ${state.googleAccessToken}")
 }
 
+def refreshAll() {
+    log.info('Hub startup - dropping stale events with timestamp<now, and refreshing devices')
+    state.lastStartup = now()
+    def children = getChildDevices()
+    children.each {
+        if (it != null) {
+            getDeviceData(it)
+        }
+    }
+}
+
 def getDeviceData(com.hubitat.app.DeviceWrapper device) {
     log.info("Refresh device details for ${device}")
     def deviceId = device.getDeviceNetworkId()
@@ -580,13 +614,13 @@ def handleDeviceGet(resp, data) {
         }
         if (respCode == 401 && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
-            initialize()
+            rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceGet, data.params, data)
         } else if (respCode == 429 && data.backoffCount < 5) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
-            runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+            //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.error("Device-get response code: ${respCode}, body: ${respError}")
         }
@@ -656,13 +690,13 @@ def handlePostCommand(resp, data) {
         }
         if (respCode == 401 && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
-            initialize()
+            rescheduleLogin()
             data.isRetry = true
             asynchttpPost(handlePostCommand, data.params, data)
         } else if (respCode == 429 && data.backoffCount < 5) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
-            runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respError}")
         }
