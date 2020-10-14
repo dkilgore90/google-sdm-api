@@ -15,11 +15,14 @@
 
 metadata {
     definition(name: 'Google Nest Doorbell', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-doorbell.groovy') {
-        capability 'VideoCamera'
+       // capability 'VideoCamera'
         capability 'PushableButton'
         capability 'ImageCapture'
         capability 'Refresh'
         capability 'MotionSensor'
+        capability 'PresenceSensor'
+        capability 'SoundSensor'
+        
 
         attribute 'room', 'string'
         attribute 'imgWidth', 'number'
@@ -30,7 +33,9 @@ metadata {
     }
     
     preferences {
-        input 'minimumMotionTime', 'number', title: 'Minimum Motion time (s)', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
+        input 'minimumMotionTime', 'number', title: 'Motion timeout', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
+        input 'minimumPresenseTime', 'number', title: 'Presense timeout', 'description': 'minimum time (in seconds) that the presence attribute will show `present` after receiving an event', required: true, defaultValue: 15
+         input 'minimumSoundTime', 'number', title: 'Sound timeout', 'description': 'minimum time (in seconds) that the sound attribute will show `detected` after receiving an event', required: true, defaultValue: 15
     }
 }
 
@@ -55,6 +60,18 @@ def refresh() {
     parent.getDeviceData(device)
 }
 
+def processPerson() {
+    device.sendEvent(name: 'presence', value: 'present')
+    if (minimumPresenseTime == null) {
+        device.updateSetting('minimumPresenseTime', 15)
+    }
+    runIn(minimumPresenseTime, presenceInactive, [overwrite: true])
+}
+
+def presenceInactive() {
+    device.sendEvent(name: 'presence', value: 'not present')
+}
+
 def processMotion() {
     device.sendEvent(name: 'motion', value: 'active')
     if (minimumMotionTime == null) {
@@ -65,6 +82,18 @@ def processMotion() {
 
 def motionInactive() {
     device.sendEvent(name: 'motion', value: 'inactive')
+}
+
+def processSound() {
+    device.sendEvent(name: 'sound', value: 'detected')
+    if (minimumSoundTime == null) {
+        device.updateSetting('minimumSoundTime', 15)
+    }
+    runIn(minimumSoundTime, soundInactive, [overwrite: true])
+}
+
+def soundInactive() {
+    device.sendEvent(name: 'sound', value: 'not detected')
 }
 
 def take() {
