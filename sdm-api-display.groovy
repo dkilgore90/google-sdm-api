@@ -14,7 +14,7 @@
  */
 
 metadata {
-    definition(name: 'Google Nest Display-GG', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-display.groovy') {
+    definition(name: 'Google Nest Display', namespace: 'dkilgore90', author: 'David Kilgore', importUrl: 'https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-display.groovy') {
         //capability 'VideoCamera'
         capability 'ImageCapture'
         capability 'Refresh'
