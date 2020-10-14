@@ -16,7 +16,7 @@ import groovy.json.JsonSlurper
  */
 
 definition(
-        name: 'Google SDM API-GG',
+        name: 'Google SDM API',
         namespace: 'dkilgore90',
         author: 'David Kilgore',
         description: 'Provides for discovery and control of Google Nest devices',
