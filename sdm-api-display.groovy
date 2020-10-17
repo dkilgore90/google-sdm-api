@@ -21,6 +21,7 @@ metadata {
         capability 'MotionSensor'
         capability 'PresenceSensor'
         capability 'SoundSensor'
+        capability 'Initialize'
 
         attribute 'room', 'string'
         attribute 'imgWidth', 'number'
@@ -51,12 +52,20 @@ private logDebug(msg) {
 }
 
 def installed() {
+    initialize()
 }
 
 def updated() {
+    initialize()
 }
 
 def uninstalled() {
+}
+
+def initialize() {
+    device.sendEvent(name: 'presence', value: device.currentValue('presence') ?: 'not present')
+    device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
+    device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
 }
 
 def refresh() {
