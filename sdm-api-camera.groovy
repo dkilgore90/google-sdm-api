@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.1
+ *  version: 0.2.0
  */
 
 metadata {
@@ -21,6 +21,7 @@ metadata {
         capability 'MotionSensor'
         capability 'PresenceSensor'
         capability 'SoundSensor'
+        capability 'Initialize'
 
         attribute 'room', 'string'
         attribute 'imgWidth', 'number'
@@ -31,19 +32,40 @@ metadata {
     }
     
     preferences {
-        input 'minimumMotionTime', 'number', title: ' Motion timeout', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
-         input 'minimumPresenseTime', 'number', title: 'Presense timeout', 'description': 'minimum time (in seconds) that the presence attribute will show `present` after receiving an event', required: true, defaultValue: 15
-         input 'minimumSoundTime', 'number', title: 'Sound timeout', 'description': 'minimum time (in seconds) that the sound attribute will show `detected` after receiving an event', required: true, defaultValue: 15
+        input 'minimumMotionTime', 'number', title: 'Motion timeout (s)', required: true, defaultValue: 15
+        input 'minimumPresenceTime', 'number', title: 'Presence timeout (s)', required: true, defaultValue: 15
+        input 'minimumSoundTime', 'number', title: 'Sound timeout (s)', required: true, defaultValue: 15
+    
+        input 'chimeImageCapture', 'bool', title: 'Chime - Capture image?', required: true, defaultValue: true
+        input 'personImageCapture', 'bool', title: 'Person - Capture image?', required: true, defaultValue: true
+        input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', required: true, defaultValue: true
+        input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', required: true, defaultValue: true
+    
+        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
+    }
+}
+
+private logDebug(msg) {
+    if (settings?.debugOutput) {
+        log.debug "${device.label}: $msg"
     }
 }
 
 def installed() {
+    initialize()
 }
 
 def updated() {
+    initialize()
 }
 
 def uninstalled() {
+}
+
+def initialize() {
+    device.sendEvent(name: 'presence', value: device.currentValue('presence') ?: 'not present')
+    device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
+    device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
 }
 
 def refresh() {
@@ -51,18 +73,21 @@ def refresh() {
 }
 
 def processPerson() {
+    logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
-    if (minimumPresenseTime == null) {
-        device.updateSetting('minimumPresenseTime', 15)
+    if (minimumPresenceTime == null) {
+        device.updateSetting('minimumPresenceTime', 15)
     }
-    runIn(minimumPresenseTime, presenceInactive, [overwrite: true])
+    runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
 }
 
 def presenceInactive() {
+    logDebug('Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
 def processMotion() {
+    logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
     if (minimumMotionTime == null) {
         device.updateSetting('minimumMotionTime', 15)
@@ -71,10 +96,12 @@ def processMotion() {
 }
 
 def motionInactive() {
+    logDebug('Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
 def processSound() {
+    logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
     if (minimumSoundTime == null) {
         device.updateSetting('minimumSoundTime', 15)
@@ -83,9 +110,26 @@ def processSound() {
 }
 
 def soundInactive() {
+    logDebug('Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
 }
 
+def shouldGetImage(String event) {
+    switch (event) {
+    case 'Person':
+        return personImageCapture != null ? personImageCapture : true
+        break
+    case 'Motion':
+        return motionImageCapture != null ? motionImageCapture : true
+        break
+    case 'Sound':
+        return soundImageCapture != null ? soundImageCapture : true
+        break
+    default:
+        return true
+        break
+    }
+}
 def take() {
     log.warn('on-demand image capture is not supported')
 }

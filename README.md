@@ -55,12 +55,22 @@ using the `attribute` tile.  Simply select the device, and the attribute to use 
 Note: this currently only works for *Local* dashboards -- support for cloud dashboards coming in a future update.
 
 ### Motion "sensor"
-Any camera event will trigger a motion *Active* event.  Since the current API does not send another event when motion is no longer detected,
-a preferences entry is defined for each device, which determines the amount of time before the motion is deemed *Inactive*.  If another event
+A "Motion" event from Google will trigger a motion *Active* event in HE.  Since the current API does not send another event when motion is no longer detected,
+a preferences entry is defined for each device, which determines the amount of time before the motion is deemed *Inactive*.  If another motion event
 is received before this timer expires, the *Inactive* transition is deferred for the specified interval.
 
+### "Presence sensor"
+A "Person" event from Google will trigger a presence *Present* event in HE. A preferences entry determining the length of "presence" is defined
+as for motion above.
+
+### Sound "sensor"
+A "Sound" event from Google will trigger a sound *detected* event in HE.  A preferences entry determining the length of sound "detection" is defined
+as for motion above.
+
 ### Doorbell Chime
-The doorbell chime will generate a *pushed* event on `button 1` for the device.  This can be used for Rule Machine or Notification triggers.
+The doorbell chime will generate a *pushed* event on `button 1` for the device.
+
+Any of these HE events can be used for Rule Machine or Notification triggers.
 
 ## Debug buttons -- not required for normal operation -- but useful to retry actions that might have failed during setup, such as the event subscription
 
