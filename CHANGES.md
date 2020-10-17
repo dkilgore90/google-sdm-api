@@ -2,6 +2,27 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-16
+
+### sdm-api-app:0.3.0
+* Support different attributes per event type (Person=presence, Sound=sound)
+* Catch exception parsing empty HTTP response body on error codes
+
+### sdm-api-doorbell:0.2.0
+* Add attributes per event type
+* Toggle settings for image capture per event type
+* Add debug logging and toggle
+
+### sdm-api-camera:0.2.0
+* Add attributes per event type
+* Toggle settings for image capture per event type
+* Add debug logging and toggle
+
+### sdm-api-display:0.2.0
+* Add attributes per event type
+* Toggle settings for image capture per event type
+* Add debug logging and toggle
+
 ## 2020-10-12
 
 ### sdm-api-app:0.2.5
