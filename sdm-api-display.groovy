@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.0
+ *  version: 0.2.1
  */
 
 metadata {
@@ -36,7 +36,6 @@ metadata {
         input 'minimumPresenceTime', 'number', title: 'Presence timeout (s)', required: true, defaultValue: 15
         input 'minimumSoundTime', 'number', title: 'Sound timeout (s)', required: true, defaultValue: 15
     
-        input 'chimeImageCapture', 'bool', title: 'Chime - Capture image?', required: true, defaultValue: true
         input 'personImageCapture', 'bool', title: 'Person - Capture image?', required: true, defaultValue: true
         input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', required: true, defaultValue: true
         input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', required: true, defaultValue: true
