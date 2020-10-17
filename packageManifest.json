@@ -32,7 +32,7 @@
       "namespace": "dkilgore90",
       "location": "https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-doorbell.groovy",
       "required": false,
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "id": "7992c0e3-57d2-48f1-842a-27c24a25f210",
@@ -40,7 +40,7 @@
       "namespace": "dkilgore90",
       "location": "https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-camera.groovy",
       "required": false,
-      "version": "0.2.1"
+      "version": "0.2.2"
     },
     {
       "id": "71462623-8001-44a1-a5d2-0989be1f9989",
@@ -48,7 +48,7 @@
       "namespace": "dkilgore90",
       "location": "https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-display.groovy",
       "required": false,
-      "version": "0.2.1"
+      "version": "0.2.2"
     }
   ]
 }
