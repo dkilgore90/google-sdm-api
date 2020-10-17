@@ -77,12 +77,12 @@ def refresh() {
 }
 
 def processChime() {
-    logDebug('Doorbell/chime pressed')
+    logDebug('${device.label}: Doorbell/chime pressed')
     device.sendEvent(name: 'pushed', value: 1, isStateChange: true)
 }
 
 def processPerson() {
-    logDebug('Person -- present')
+    logDebug('${device.label}: Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
     if (minimumPresenceTime == null) {
         device.updateSetting('minimumPresenceTime', 15)
@@ -91,12 +91,12 @@ def processPerson() {
 }
 
 def presenceInactive() {
-    logDebug('Person -- not present')
+    logDebug('${device.label}: Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
 def processMotion() {
-    logDebug('Motion -- active')
+    logDebug('${device.label}: Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
     if (minimumMotionTime == null) {
         device.updateSetting('minimumMotionTime', 15)
@@ -105,12 +105,12 @@ def processMotion() {
 }
 
 def motionInactive() {
-    logDebug('Motion -- inactive')
+    logDebug('${device.label}: Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
 def processSound() {
-    logDebug('Sound -- detected')
+    logDebug('${device.label}: Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
     if (minimumSoundTime == null) {
         device.updateSetting('minimumSoundTime', 15)
@@ -119,7 +119,7 @@ def processSound() {
 }
 
 def soundInactive() {
-    logDebug('Sound -- not detected')
+    logDebug('${device.label}: Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
 }
 
