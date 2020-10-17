@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-17
+
+### sdm-api-camera:0.2.1
+* Remove extraneous preference for chimeImageCapture
+
+### sdm-api-display:0.2.1
+* Remove extraneous preference for chimeImageCapture
+
 ## 2020-10-16
 
 ### sdm-api-app:0.3.0
