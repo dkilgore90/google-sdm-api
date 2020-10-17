@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### sdm-api-app:0.3.0
 * Support different attributes per event type (Person=presence, Sound=sound)
+* Catch exception parsing empty HTTP response body on error codes
 
 ### sdm-api-doorbell:0.2.0
 * Add attributes per event type

@@ -310,8 +310,14 @@ def handleDeviceList(resp, data) {
         log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
-    } else if (respCode != 200 ) {
-        log.warn("Device-list response code: ${respCode}, body: ${resp.getErrorJson()}")
+    } else if (respCode != 200) {
+        def respError = ''
+        try {
+            respError = resp.getErrorJson()
+        } catch (Exception ignored) {
+            // no response body
+        }
+        log.warn("Device-list response code: ${respCode}, body: ${respError}")
     } else {
         def respJson = resp.getJson()
         respJson.devices.each {
@@ -470,8 +476,14 @@ def putResponse(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 409) {
         log.warn('createEventSubscription returned status code 409 -- subscription already exists')
-    } else if (resp.hasError()) {
-        log.error("createEventSubscription returned status code ${respCode} -- ${resp.getErrorJson()}")
+    } else if (respCode != 200) {
+        def respError = ''
+        try {
+            respError = resp.getErrorJson()
+        } catch (Exception ignored) {
+            // no response body
+        }
+        log.error("createEventSubscription returned status code ${respCode} -- ${respError}")
     } else {
         logDebug(resp.getJson())
     }
@@ -560,7 +572,13 @@ def handleDeviceGet(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200 ) {
-        log.error("Device-get response code: ${respCode}, body: ${resp.getErrorJson()}")
+        def respError = ''
+        try {
+            respError = resp.getErrorJson()
+        } catch (Exception ignored) {
+            // no response body
+        }
+        log.error("Device-get response code: ${respCode}, body: ${respError}")
     } else {
         processTraits(data.device, resp.getJson())
     }
@@ -628,7 +646,13 @@ def handlePostCommand(resp, data) {
         data.backoffCount = (data.backoffCount ?: 0) + 1
         runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
     } else if (respCode != 200) {
-        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${resp.getErrorJson()}")
+        def respError = ''
+        try {
+            respError = resp.getErrorJson()
+        } catch (Exception ignored) {
+            // no response body
+        }
+        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respError}")
     } else {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
             def respJson = resp.getJson()
