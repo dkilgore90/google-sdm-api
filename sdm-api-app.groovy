@@ -435,6 +435,8 @@ def processCameraTraits(device, details) {
     def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
     imgRes?.width ? sendEvent(device, [name: 'imgWidth', value: imgRes.width]) : null
     imgRes?.height ? sendEvent(device, [name: 'imgHeight', value: imgRes.height]) : null   
+    def room = details?.parentRelations?.getAt(0)?.displayName
+    room ? sendEvent(device, [name: 'room', value: room]) : null  
 }
 
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
@@ -506,20 +508,20 @@ def postEvents() {
     if (device != null) {
         def lastEvent = device.currentValue('lastEventTime')
         if (lastEvent == null) {
-            lastEvent = '1970-01-01T00:00:00.000Z'
+            lastEvent = "1970-01-01T00:00:00.000Z"
+            sendEvent(device, [name: 'lastEventTime', value: lastEvent])  
         }
         def timeCompare = -1
         try {
-            timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
+            timeCompare = (dataJson.timestamp).compareTo(lastEvent)
         } catch (java.text.ParseException e) {
             //don't expect this to ever fail - catch for safety only
-        }
-        if ( timeCompare >= 0) {
-            def utcTimestamp = toDateTime(dataJson.timestamp)
-            sendEvent(device, [name: 'lastEventTime', value: utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone)])
+        }  
+        if (timeCompare >= 0) {  
+            sendEvent(device, [name: 'lastEventTime', value: dataJson.timestamp])
             processTraits(device, dataJson.resourceUpdate)
         } else {
-            log.warn("Received event out of order, refreshing device ${device}")
+            log.warn("Received event out of order, refreshing device ${device}. Time received: ${dataJson.timestamp}.  Previous Event: ${lastEvent}")
             getDeviceData(device)
         }
     }
@@ -548,7 +550,7 @@ void deleteEventSubscription() {
 }
 
 def logToken() {
-    log.debug("Access Token: ${state.googleAccessToken}")
+    logDebug("Access Token: ${state.googleAccessToken}")
 }
 
 def getDeviceData(com.hubitat.app.DeviceWrapper device) {
