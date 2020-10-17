@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.5
+ *  version: 0.3.0
  */
 
 definition(
@@ -435,22 +435,18 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
-            sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
-            deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
-        }
-        if (key == 'sdm.devices.events.CameraPerson.Person') {
+        } else if (key == 'sdm.devices.events.CameraPerson.Person') {
             device.processPerson()
-            sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+        } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
+            device.processMotion()
+        } else if (key == 'sdm.devices.events.CameraSound.Sound') {
+            device.processSound()
+        }
+        def abbrKey = key.tokenize('.')[-1]
+        sendEvent(device, [name: 'lastEventType', value: abbrKey])
+        if (device.shouldGetImage(abbrKey)) {
             deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
         }
-         if (key == 'sdm.devices.events.CameraMotion.Motion') {
-               device.processMotion()
-                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
-         }
-        if (key == 'sdm.devices.events.CameraSound.Sound') {
-               device.processSound()
-                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
-         }
     }
 }
 

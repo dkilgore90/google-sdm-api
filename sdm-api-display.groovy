@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.1
+ *  version: 0.2.0
  */
 
 metadata {
@@ -31,9 +31,13 @@ metadata {
     }
     
     preferences {
-        input 'minimumMotionTime', 'number', title: 'Motion timeout', 'description': 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
-          input 'minimumPresenseTime', 'number', title: 'Presense timeout', 'description': 'minimum time (in seconds) that the presence attribute will show `present` after receiving an event', required: true, defaultValue: 15
-         input 'minimumSoundTime', 'number', title: 'Sound timeout', 'description': 'minimum time (in seconds) that the sound attribute will show `detected` after receiving an event', required: true, defaultValue: 15
+        input 'minimumMotionTime', 'number', title: 'Motion timeout', description: 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
+        input 'minimumPresenceTime', 'number', title: 'Presence timeout', description: 'minimum time (in seconds) that the presence attribute will show `present` after receiving an event', required: true, defaultValue: 15
+        input 'minimumSoundTime', 'number', title: 'Sound timeout', description: 'minimum time (in seconds) that the sound attribute will show `detected` after receiving an event', required: true, defaultValue: 15
+
+        input 'personImageCapture', 'bool', title: 'Person - Capture image?', description: 'whether to download the still image for "Person" events', required: true, defaultValue: true
+        input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', description: 'whether to download the still image for "Motion" events', required: true, defaultValue: true
+        input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', description: 'whether to download the still image for "Sound" events', required: true, defaultValue: true
     }
 }
 
@@ -52,10 +56,10 @@ def refresh() {
 
 def processPerson() {
     device.sendEvent(name: 'presence', value: 'present')
-    if (minimumPresenseTime == null) {
-        device.updateSetting('minimumPresenseTime', 15)
+    if (minimumPresenceTime == null) {
+        device.updateSetting('minimumPresenceTime', 15)
     }
-    runIn(minimumPresenseTime, presenceInactive, [overwrite: true])
+    runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
 }
 
 def presenceInactive() {
@@ -86,6 +90,22 @@ def soundInactive() {
     device.sendEvent(name: 'sound', value: 'not detected')
 }
 
+def shouldGetImage(String event) {
+    switch (event) {
+    case 'Person':
+        return personImageCapture != null ? personImageCapture : true
+        break
+    case 'Motion':
+        return motionImageCapture != null ? motionImageCapture : true
+        break
+    case 'Sound':
+        return soundImageCapture != null ? soundImageCapture : true
+        break
+    default:
+        return true
+        break
+    }
+}
 def take() {
     log.warn('on-demand image capture is not supported')
 }
