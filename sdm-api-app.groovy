@@ -435,10 +435,22 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
+            sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+            deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
         }
-        device.processMotion()
-        sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
-        deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+        if (key == 'sdm.devices.events.CameraPerson.Person') {
+            device.processPerson()
+            sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+            deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+        }
+         if (key == 'sdm.devices.events.CameraMotion.Motion') {
+               device.processMotion()
+                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+         }
+        if (key == 'sdm.devices.events.CameraSound.Sound') {
+               device.processSound()
+                sendEvent(device, [name: 'lastEventType', value: key.tokenize('.')[-1]])
+         }
     }
 }
 
