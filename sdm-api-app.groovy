@@ -441,6 +441,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             device.processChime()
+            device.processPerson() //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
             device.processPerson()
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
