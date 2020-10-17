@@ -440,7 +440,7 @@ def processCameraTraits(device, details) {
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
-            sendEvent(device, [name: 'pushed', value: 1, isStateChange: true])
+            device.processChime()
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
             device.processPerson()
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {

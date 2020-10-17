@@ -31,13 +31,22 @@ metadata {
     }
     
     preferences {
-        input 'minimumMotionTime', 'number', title: ' Motion timeout', description: 'minimum time (in seconds) that the motion attribute will show `active` after receiving an event', required: true, defaultValue: 15
-        input 'minimumPresenceTime', 'number', title: 'Presence timeout', description: 'minimum time (in seconds) that the presence attribute will show `present` after receiving an event', required: true, defaultValue: 15
-        input 'minimumSoundTime', 'number', title: 'Sound timeout', description: 'minimum time (in seconds) that the sound attribute will show `detected` after receiving an event', required: true, defaultValue: 15
+        input 'minimumMotionTime', 'number', title: 'Motion timeout (s)', required: true, defaultValue: 15
+        input 'minimumPresenceTime', 'number', title: 'Presence timeout (s)', required: true, defaultValue: 15
+        input 'minimumSoundTime', 'number', title: 'Sound timeout (s)', required: true, defaultValue: 15
+    
+        input 'chimeImageCapture', 'bool', title: 'Chime - Capture image?', required: true, defaultValue: true
+        input 'personImageCapture', 'bool', title: 'Person - Capture image?', required: true, defaultValue: true
+        input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', required: true, defaultValue: true
+        input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', required: true, defaultValue: true
+    
+        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
+    }
+}
 
-        input 'personImageCapture', 'bool', title: 'Person - Capture image?', description: 'whether to download the still image for "Person" events', required: true, defaultValue: true
-        input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', description: 'whether to download the still image for "Motion" events', required: true, defaultValue: true
-        input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', description: 'whether to download the still image for "Sound" events', required: true, defaultValue: true
+private logDebug(msg) {
+    if (settings?.debugOutput) {
+        log.debug "${device.label}: $msg"
     }
 }
 
@@ -55,6 +64,7 @@ def refresh() {
 }
 
 def processPerson() {
+    logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
     if (minimumPresenceTime == null) {
         device.updateSetting('minimumPresenceTime', 15)
@@ -63,10 +73,12 @@ def processPerson() {
 }
 
 def presenceInactive() {
+    logDebug('Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
 def processMotion() {
+    logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
     if (minimumMotionTime == null) {
         device.updateSetting('minimumMotionTime', 15)
@@ -75,10 +87,12 @@ def processMotion() {
 }
 
 def motionInactive() {
+    logDebug('Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
 def processSound() {
+    logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
     if (minimumSoundTime == null) {
         device.updateSetting('minimumSoundTime', 15)
@@ -87,6 +101,7 @@ def processSound() {
 }
 
 def soundInactive() {
+    logDebug('Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
 }
 

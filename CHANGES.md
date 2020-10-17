@@ -11,14 +11,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### sdm-api-doorbell:0.2.0
 * Add attributes per event type
 * Toggle settings for image capture per event type
+* Add debug logging and toggle
 
 ### sdm-api-camera:0.2.0
 * Add attributes per event type
 * Toggle settings for image capture per event type
+* Add debug logging and toggle
 
 ### sdm-api-display:0.2.0
 * Add attributes per event type
 * Toggle settings for image capture per event type
+* Add debug logging and toggle
 
 ## 2020-10-12
 
