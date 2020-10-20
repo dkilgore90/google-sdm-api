@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+<<<<<<< HEAD
 ## 2020-10-19
 
 ### sdm-api-app:0.3.1
@@ -16,6 +17,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### sdm-api-doorbell:0.2.1
 * Reset image and rawImg attribute values when all toggles are disabled
 
+=======
+>>>>>>> develop
 ## 2020-10-17
 
 ### sdm-api-camera:0.2.1
