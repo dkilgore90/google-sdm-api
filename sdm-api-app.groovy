@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.3.0
+ *  version: 0.3.1
  */
 
 definition(
@@ -519,7 +519,7 @@ def postEvents() {
             sendEvent(device, [name: 'lastEventTime', value: utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone)])
             processTraits(device, dataJson.resourceUpdate)
         } else {
-            log.warn("Received event out of order, refreshing device ${device}")
+            log.warn("Received event out of order -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent} -- refreshing device ${device}")
             getDeviceData(device)
         }
     }
