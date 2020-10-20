@@ -2,6 +2,20 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-19
+
+### sdm-api-app:0.3.1
+* Log current event timestamp and lastEventTime when claiming events out of order for better troubleshooting
+
+### sdm-api-camera:0.2.2
+* Reset image and rawImg attribute values when all toggles are disabled
+
+### sdm-api-display:0.2.2
+* Reset image and rawImg attribute values when all toggles are disabled
+
+### sdm-api-doorbell:0.2.1
+* Reset image and rawImg attribute values when all toggles are disabled
+
 ## 2020-10-17
 
 ### sdm-api-camera:0.2.1

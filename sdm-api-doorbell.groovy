@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.0
+ *  version: 0.2.1
  */
 
 metadata {
@@ -57,6 +57,10 @@ def installed() {
 }
 
 def updated() {
+    if (!chimeImageCapture && !personImageCapture && !motionImageCapture && !soundImageCapture) {
+        device.sendEvent(name: 'image', value: '<img src="" />')
+        device.sendEvent(name: 'rawImg', value: ' ')
+    }
     initialize()
 }
 
@@ -69,6 +73,7 @@ def initialize() {
     device.sendEvent(name: 'presence', value: device.currentValue('presence') ?: 'not present')
     device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
     device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
+    device.sendEvent(name: 'image', value: device.currentValue('image') ?: '<img src="" />')
 }
 
 def refresh() {
