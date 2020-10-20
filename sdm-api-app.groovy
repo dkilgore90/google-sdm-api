@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.3.0
+ *  version: 0.3.1
  */
 
 definition(
@@ -301,23 +301,25 @@ private void discover() {
 
 def handleDeviceList(resp, data) {
     def respCode = resp.getStatus()
-    if (respCode == 401 && !data.isRetry) {
-        log.warn('Authorization token expired, will refresh and retry.')
-        initialize()
-        data.isRetry = true
-        asynchttpGet(handleDeviceList, data.params, data)
-    } else if (respCode == 429 && data.backoffCount < 5) {
-        log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
-        data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
-    } else if (respCode != 200) {
+    if (resp.hasError()) {
         def respError = ''
         try {
             respError = resp.getErrorJson()
         } catch (Exception ignored) {
             // no response body
         }
-        log.warn("Device-list response code: ${respCode}, body: ${respError}")
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            initialize()
+            data.isRetry = true
+            asynchttpGet(handleDeviceList, data.params, data)
+        } else if (respCode == 429 && data.backoffCount < 5) {
+            log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            data.backoffCount = (data.backoffCount ?: 0) + 1
+            runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.warn("Device-list response code: ${respCode}, body: ${respError}")
+        }
     } else {
         def respJson = resp.getJson()
         respJson.devices.each {
@@ -519,7 +521,7 @@ def postEvents() {
             sendEvent(device, [name: 'lastEventTime', value: utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone)])
             processTraits(device, dataJson.resourceUpdate)
         } else {
-            log.warn("Received event out of order, refreshing device ${device}")
+            log.warn("Received event out of order -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent} -- refreshing device ${device}")
             getDeviceData(device)
         }
     }
@@ -563,23 +565,25 @@ def getDeviceData(com.hubitat.app.DeviceWrapper device) {
 
 def handleDeviceGet(resp, data) {
     def respCode = resp.getStatus()
-    if (respCode == 401 && !data.isRetry) {
-        log.warn('Authorization token expired, will refresh and retry.')
-        initialize()
-        data.isRetry = true
-        asynchttpGet(handleDeviceGet, data.params, data)
-    } else if (respCode == 429 && data.backoffCount < 5) {
-        log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
-        data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
-    } else if (respCode != 200 ) {
+    if (resp.hasError()) {
         def respError = ''
         try {
             respError = resp.getErrorJson()
         } catch (Exception ignored) {
             // no response body
         }
-        log.error("Device-get response code: ${respCode}, body: ${respError}")
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            initialize()
+            data.isRetry = true
+            asynchttpGet(handleDeviceGet, data.params, data)
+        } else if (respCode == 429 && data.backoffCount < 5) {
+            log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            data.backoffCount = (data.backoffCount ?: 0) + 1
+            runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("Device-get response code: ${respCode}, body: ${respError}")
+        }
     } else {
         processTraits(data.device, resp.getJson())
     }
@@ -637,23 +641,25 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
-    if (respCode == 401 && !data.isRetry) {
-        log.warn('Authorization token expired, will refresh and retry.')
-        initialize()
-        data.isRetry = true
-        asynchttpPost(handlePostCommand, data.params, data)
-    } else if (respCode == 429 && data.backoffCount < 5) {
-        log.warn("Hit rate limit, backoff and retry -- response: ${resp.getErrorJson()}")
-        data.backoffCount = (data.backoffCount ?: 0) + 1
-        runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
-    } else if (respCode != 200) {
+    if (resp.hasError()) {
         def respError = ''
         try {
             respError = resp.getErrorJson()
         } catch (Exception ignored) {
             // no response body
         }
-        log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respError}")
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            initialize()
+            data.isRetry = true
+            asynchttpPost(handlePostCommand, data.params, data)
+        } else if (respCode == 429 && data.backoffCount < 5) {
+            log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            data.backoffCount = (data.backoffCount ?: 0) + 1
+            runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respError}")
+        }
     } else {
         if (data.command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
             def respJson = resp.getJson()
