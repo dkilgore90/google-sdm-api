@@ -10,11 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
-<<<<<<< HEAD
  *  version: 0.2.2
-=======
- *  version: 0.2.1
->>>>>>> develop
  */
 
 metadata {
