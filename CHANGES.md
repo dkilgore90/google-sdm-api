@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-26
+
+### sdm-api-thermostat:0.1.3
+* Fix default duration setting when fanOn is called without any args
+
 ## 2020-10-19
 
 ### sdm-api-app:0.3.1
