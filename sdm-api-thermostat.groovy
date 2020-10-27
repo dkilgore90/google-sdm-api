@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.2
+ *  version: 0.1.3
  */
 
 metadata {
@@ -135,7 +135,7 @@ def setThermostatFanMode(mode, duration=null) {
     }
     duration = duration ?: defaultFanTime
     def sDuration = mode == 'auto' ? null : duration.toString() + 's'
-    parent.deviceSetFanMode(device, mode == 'auto' ? 'OFF' : 'ON', duration)
+    parent.deviceSetFanMode(device, mode == 'auto' ? 'OFF' : 'ON', sDuration)
 }
 
 def setEcoMode(mode) {
