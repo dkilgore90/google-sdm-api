@@ -506,6 +506,11 @@ def postEvents() {
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
     if (device != null) {
+        // format back to millisecond decimal places in case the timestamp has nano-second resolution
+        int periodIndex = dataJson.timestamp.lastIndexOf('.')
+        dataJson.timestamp = dataJson.timestamp.substring(0, (periodIndex + 4))
+        dataJson.timestamp = dataJson.timestamp+"Z" 
+        
         def lastEvent = device.currentValue('lastEventTime')
         if (lastEvent == null) {
             lastEvent = '1970-01-01T00:00:00.000Z'
