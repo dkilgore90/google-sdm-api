@@ -135,7 +135,7 @@ def setHeatCoolSetpoint(heat, cool) {
         if  (tempMovement <= 0) {
             parent.deviceSetTemperatureSetpoint(device, heat, cool)
         } else {
-            log.warn ("Heat/Cool setpoints require a minimum deadband of 1.5*C or 2.7*F")
+            log.error("Heat/Cool setpoints require a minimum deadband of 1.5*C or 2.7*F -- inputs: ${heat} / ${cool}")
         }
     } else {
         log.warn("Cannot setHeatCoolSetpoint in thermostatMode: ${mode}")
