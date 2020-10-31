@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.3.1
+ *  version: 0.3.2
  */
 
 definition(
@@ -506,7 +506,7 @@ def postEvents() {
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
     if (device != null) {
-        // format back to millisecond decimal places in case the timestamp has nano-second resolution
+        // format back to millisecond decimal places in case the timestamp has micro-second resolution
         int periodIndex = dataJson.timestamp.lastIndexOf('.')
         dataJson.timestamp = dataJson.timestamp.substring(0, (periodIndex + 4))
         dataJson.timestamp = dataJson.timestamp+"Z" 
