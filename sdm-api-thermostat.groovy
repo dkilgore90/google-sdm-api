@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.3
+ *  version: 0.1.4
  */
 
 metadata {
@@ -95,7 +95,7 @@ def off() {
 }
 
 def setCoolingSetpoint(temp) {
-    def tempMovement = device.currentValue('heatingSetpoint').toFloat() - temp.toFloat() + 1.5
+    def tempMovement = checkDeadband(device.currentValue('heatingSetpoint'), temp)
     if (tempMovement <= 0) {
         tempMovement = device.currentValue('heatingSetpoint')
     } else {
@@ -112,7 +112,7 @@ def setCoolingSetpoint(temp) {
 }
 
 def setHeatingSetpoint(temp) {
-    def tempMovement = temp.toFloat() - device.currentValue('coolingSetpoint').toFloat() + 1.5
+    def tempMovement = checkDeadband(temp, device.currentValue('coolingSetpoint'))
     if (tempMovement <= 0) {
         tempMovement = device.currentValue('coolingSetpoint')
     } else {
@@ -129,13 +129,23 @@ def setHeatingSetpoint(temp) {
 }
 
 def setHeatCoolSetpoint(heat, cool) {
-    def tempMovement = heat.toFloat() - cool.toFloat() + 1.5
+    def tempMovement = checkDeadband(heat, cool)
     def mode = device.currentValue('thermostatMode')
-    if ((mode == 'auto') && (tempMovement <= 0)) {
-        parent.deviceSetTemperatureSetpoint(device, heat, cool)
+    if (mode == 'auto') {
+        if  (tempMovement <= 0) {
+            parent.deviceSetTemperatureSetpoint(device, heat, cool)
+        } else {
+            log.error("Heat/Cool setpoints require a minimum deadband of 1.5*C or 2.7*F -- inputs: ${heat} / ${cool}")
+        }
     } else {
         log.warn("Cannot setHeatCoolSetpoint in thermostatMode: ${mode}")
     }
+}
+
+def checkDeadband(heat, cool) {
+    def deadband = getTemperatureScale() == 'F' ? 2.7 : 1.5
+    def tempMovement = heat.toFloat() - cool.toFloat() + deadband
+    return tempMovement
 }
 
 def setThermostatMode(mode) {

@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-10-31
+
+### sdm-api-app:0.3.2
+* Normalize timestamps in milliseconds (some devices report microseconds)
+
+### sdm-api-thermostat:0.1.4
+* Match Nest app behavior in HEATCOOL mode -- automatically bump opposing setpoint to maintain minimum deadband
+
 ## 2020-10-26
 
 ### sdm-api-thermostat:0.1.3
