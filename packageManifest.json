@@ -14,7 +14,7 @@
       "required": true,
       "oauth": true,
       "primary": true,
-      "version": "0.3.1"
+      "version": "0.3.2"
     }
   ],
   "drivers": [
@@ -24,7 +24,7 @@
       "namespace": "dkilgore90",
       "location": "https://raw.githubusercontent.com/dkilgore90/google-sdm-api/master/sdm-api-thermostat.groovy",
       "required": false,
-      "version": "0.1.3"
+      "version": "0.1.4"
     },
     {
       "id": "207a67b0-8790-41b9-8b5f-00467d55a00a",
