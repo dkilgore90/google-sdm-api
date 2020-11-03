@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-11-02
+
+### sdm-api-thermostat:0.1.5
+* [#46](https://github.com/dkilgore90/google-sdm-api/issues/46) - Check deadband only if in "auto" mode, catch NPE for additional safety
+
 ## 2020-10-31
 
 ### sdm-api-app:0.3.2

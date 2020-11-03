@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.4
+ *  version: 0.1.5
  */
 
 metadata {
@@ -95,43 +95,41 @@ def off() {
 }
 
 def setCoolingSetpoint(temp) {
-    def tempMovement = checkDeadband(device.currentValue('heatingSetpoint'), temp)
-    if (tempMovement <= 0) {
-        tempMovement = device.currentValue('heatingSetpoint')
-    } else {
-        tempMovement = device.currentValue('heatingSetpoint').toFloat() - tempMovement.toFloat()
-    }
     def mode = device.currentValue('thermostatMode')
     if (mode == 'cool') {
         parent.deviceSetTemperatureSetpoint(device, null, temp)
     } else if (mode == 'auto') {
-        parent.deviceSetTemperatureSetpoint(device, tempMovement, temp)
+        def heat = device.currentValue('heatingSetpoint')
+        def tempMovement = checkDeadband(heat, temp)
+        if (tempMovement > 0) {
+            heat = heat.toFloat() - tempMovement.toFloat()
+        }
+        parent.deviceSetTemperatureSetpoint(device, heat, temp)
     } else {
         log.warn("Cannot setCoolingSetpoint in thermostatMode: ${mode}")
     }
 }
 
 def setHeatingSetpoint(temp) {
-    def tempMovement = checkDeadband(temp, device.currentValue('coolingSetpoint'))
-    if (tempMovement <= 0) {
-        tempMovement = device.currentValue('coolingSetpoint')
-    } else {
-        tempMovement = device.currentValue('coolingSetpoint').toFloat() + tempMovement.toFloat()
-    }
     def mode = device.currentValue('thermostatMode')
     if (mode == 'heat') {
         parent.deviceSetTemperatureSetpoint(device, temp, null)
     } else if (mode == 'auto') {
-        parent.deviceSetTemperatureSetpoint(device, temp, tempMovement)
+        def cool = device.currentValue('coolingSetpoint')
+        def tempMovement = checkDeadband(temp, cool)
+        if (tempMovement > 0) {
+            cool = cool.toFloat() + tempMovement.toFloat()
+        }
+        parent.deviceSetTemperatureSetpoint(device, temp, cool)
     } else {
         log.warn("Cannot setHeatingSetpoint in thermostatMode: ${mode}")
     }
 }
 
 def setHeatCoolSetpoint(heat, cool) {
-    def tempMovement = checkDeadband(heat, cool)
     def mode = device.currentValue('thermostatMode')
     if (mode == 'auto') {
+        def tempMovement = checkDeadband(heat, cool)
         if  (tempMovement <= 0) {
             parent.deviceSetTemperatureSetpoint(device, heat, cool)
         } else {
@@ -143,9 +141,13 @@ def setHeatCoolSetpoint(heat, cool) {
 }
 
 def checkDeadband(heat, cool) {
-    def deadband = getTemperatureScale() == 'F' ? 2.7 : 1.5
-    def tempMovement = heat.toFloat() - cool.toFloat() + deadband
-    return tempMovement
+    try {
+        def deadband = getTemperatureScale() == 'F' ? 2.7 : 1.5
+        def tempMovement = heat.toFloat() - cool.toFloat() + deadband
+        return tempMovement
+    } catch (NullPointerException e) {
+        return 0
+    }
 }
 
 def setThermostatMode(mode) {
@@ -176,6 +178,3 @@ def fanCirculate() {
 def emergencyHeat() {
     log.info("emergencyHeat is not currently supported")
 }
-
-
-
