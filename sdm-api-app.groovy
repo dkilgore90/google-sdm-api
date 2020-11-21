@@ -214,6 +214,7 @@ def uninstalled() {
     removeChildren()
     deleteEventSubscription()
     unschedule()
+    unsubscribe()
 }
 
 def initialize(evt) {
@@ -264,6 +265,9 @@ def refreshLogin() {
         httpPost(params) { response -> handleLoginResponse(response) }
     } catch (groovyx.net.http.HttpResponseException e) {
         log.error("Login refresh failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
+    }
+    if (state.eventSubscription != 'v2') {
+        updateEventSubscription()
     }
 }
 
@@ -472,6 +476,11 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
 
 def createEventSubscription() {
     log.info('Creating Google pub/sub event subscription')
+    def params = buildSubscriptionRequest()
+    asynchttpPut(putResponse, params, [params: params])
+}
+
+def buildSubscriptionRequest() {
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
@@ -480,10 +489,15 @@ def createEventSubscription() {
         topic: 'projects/sdm-prod/topics/enterprise-' + projectId,
         pushConfig: [
             pushEndpoint: getFullApiServerUrl() + '/events?access_token=' + state.accessToken
+        ],
+        messageRetentionDuration: '600s',
+        retryPolicy: [
+            minimumBackoff: "10s",
+            maximumBackoff: "600s"
         ]
     ]
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
-    asynchttpPut(putResponse, params, [params: params])
+    return params
 }
 
 def putResponse(resp, data) {
@@ -500,12 +514,43 @@ def putResponse(resp, data) {
         log.error("createEventSubscription returned status code ${respCode} -- ${respError}")
     } else {
         logDebug(resp.getJson())
+        state.eventSubscription = 'v2'
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         rescheduleLogin()
         data.isRetry = true
-        asynchttpPut(handlePostCommand, data.params, data)
+        asynchttpPut(putResponse, data.params, data)
+    }
+}
+
+def updateEventSubscription() {
+    log.info('Updating Google pub/sub event subscription')
+    def params = buildSubscriptionRequest()
+    params.body = [subscription: params.body]
+    params.body.updateMask = 'messageRetentionDuration,retryPolicy'
+    asynchttpPatch(patchResponse, params, [params: params])
+}
+
+def patchResponse(resp, data) {
+    def respCode = resp.getStatus()
+    if (respCode != 200) {
+        def respError = ''
+        try {
+            respError = resp.getErrorJson()
+        } catch (Exception ignored) {
+            // no response body
+        }
+        log.error("updateEventSubscription returned status code ${respCode} -- ${respError}")
+    } else {
+        logDebug(resp.getJson())
+        state.eventSubscription = 'v2'
+    }
+    if (respCode == 401 && !data.isRetry) {
+        log.warn('Authorization token expired, will refresh and retry.')
+        rescheduleLogin()
+        data.isRetry = true
+        asynchttpPatch(patchResponse, data.params, data)
     }
 }
 
