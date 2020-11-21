@@ -717,9 +717,21 @@ def deviceSetEcoMode(com.hubitat.app.DeviceWrapper device, String mode) {
     deviceSendCommand(device, 'sdm.devices.commands.ThermostatEco.SetMode', [mode: mode])
 }
 
+def deviceGenerateStream(com.hubitat.app.DeviceWrapper device) {
+    deviceSendCommand(device, 'sdm.devices.commands.CameraLiveStream.GenerateRtspStream', [:])
+}
+
+def deviceExtendStream(com.hubitat.app.DeviceWrapper device, String token) {
+    deviceSendCommand(device, 'sdm.devices.commands.CameraLiveStream.ExtendRtspStream', [streamExtensionToken: token])
+}
+
+def deviceStopStream(com.hubitat.app.DeviceWrapper device, String token) {
+    deviceSendCommand(device, 'sdm.devices.commands.CameraLiveStream.StopRtspStream', [streamExtensionToken: token])
+}
+
 def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map cmdParams) {
-    if (command == 'sdm.devices.commands.CameraEventImage.GenerateImage') {
-        //log GenerateImage at debug as it is triggered automatically
+    if (command == 'sdm.devices.commands.CameraEventImage.GenerateImage' || command == 'sdm.devices.commands.CameraLiveStream.ExtendRtspStream') {
+        //log at debug as it is triggered automatically
         logDebug("Sending ${command} to ${device} with params: ${cmdParams}")
     } else {
         log.info("Sending ${command} to ${device} with params: ${cmdParams}")
@@ -751,6 +763,9 @@ def handlePostCommand(resp, data) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
             //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else if (respCode == 400 & data.command == 'sdm.devices.commands.CameraLiveStream.ExtendRtspStream') {
+            log.warn("${data.device} stream expired, generating new stream")
+            deviceGenerateStream(data.device) 
         } else {
             log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respError}")
         }
@@ -763,6 +778,10 @@ def handlePostCommand(resp, data) {
             def headers = [ Authorization: "Basic ${respJson.results.token}" ]
             def params = [uri: uri, headers: headers, query: query]
             asynchttpGet(handleImageGet, params, [device: data.device])
+        } else if ((data.command == 'sdm.devices.commands.CameraLiveStream.GenerateRtspStream') || (data.command == 'sdm.devices.commands.CameraLiveStream.ExtendRtspStream')) {
+            //def respJson = resp.getJson()
+            def device = getChildDevice(data.device.getDeviceNetworkId())
+            device.updateStreamData(resp.getJson())
         }
     }
 }
