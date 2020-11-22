@@ -575,12 +575,12 @@ def postEvents() {
     }
 
     try {
-        if (toDateTime(dataJson.timestamp) < new Date(state.lastStartup)) {
-            logDebug("Dropping event as its timestamp ${dataJson.timestamp} is before lastStartup ${state.lastStartup}")
+        if (toDateTime(dataJson.timestamp) < new Date(state.lastRecovery)) {
+            logDebug("Dropping event as its timestamp ${dataJson.timestamp} is before lastRecovery ${state.lastRecovery}")
             return
         }
     } catch (java.text.ParseException e) {
-        log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastStartup: ${state.lastStartup}")
+        log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastRecovery: ${state.lastRecovery}")
     }
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
@@ -634,8 +634,8 @@ def logToken() {
 }
 
 def refreshAll() {
-    log.info('Dropping stale events with timestamp<now, and refreshing devices')
-    state.lastStartup = now()
+    log.info('Dropping stale events with timestamp < now, and refreshing devices')
+    state.lastRecovery = now()
     def children = getChildDevices()
     children.each {
         if (it != null) {
