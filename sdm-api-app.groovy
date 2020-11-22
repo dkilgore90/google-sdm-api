@@ -581,6 +581,9 @@ def postEvents() {
         }
     } catch (java.text.ParseException e) {
         log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastRecovery: ${state.lastRecovery}")
+    } catch (IllegalArgumentException) {
+        //state.lastRecovery is null
+        state.lastRecovery = 0
     }
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
