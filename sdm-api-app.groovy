@@ -171,7 +171,7 @@ def getCredentials() {
 
 def handleAuthRedirect() {
     log.info('successful redirect from google')
-    unschedule()
+    unschedule(refreshLogin)
     def authCode = params.code
     login(authCode)
     runEvery1Hour refreshLogin
@@ -199,6 +199,7 @@ def mainPageLink() {
 def updated() {
     log.info 'Google SDM API updating'
     rescheduleLogin()
+    runEvery10Minutes checkGoogle
     subscribe(location, 'systemStart', initialize)
 }
 
@@ -206,6 +207,7 @@ def installed() {
     log.info 'Google SDM API installed'
     //initialize()
     createAccessToken()
+    runEvery10Minutes checkGoogle
     subscribe(location, 'systemStart', initialize)
 }
 
@@ -219,15 +221,22 @@ def uninstalled() {
 
 def initialize(evt) {
     log.debug(evt)
+    recover()
+}
+
+def recover() {
     rescheduleLogin()
     refreshAll()
 }
 
 def rescheduleLogin() {
-    unschedule()
+    unschedule(refreshLogin)
     if (state?.googleRefreshToken) {
         refreshLogin()
         runEvery1Hour refreshLogin
+        if (state.eventSubscription != 'v2') {
+            updateEventSubscription()
+        }
     }
 }
 
@@ -265,9 +274,6 @@ def refreshLogin() {
         httpPost(params) { response -> handleLoginResponse(response) }
     } catch (groovyx.net.http.HttpResponseException e) {
         log.error("Login refresh failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
-    }
-    if (state.eventSubscription != 'v2') {
-        updateEventSubscription()
     }
 }
 
@@ -628,7 +634,7 @@ def logToken() {
 }
 
 def refreshAll() {
-    log.info('Hub startup - dropping stale events with timestamp<now, and refreshing devices')
+    log.info('Dropping stale events with timestamp<now, and refreshing devices')
     state.lastStartup = now()
     def children = getChildDevices()
     children.each {
@@ -799,4 +805,27 @@ def getDashboardImg() {
     logDebug("Rendering image from raw data for device: ${device}")
     def img = device.currentValue('rawImg')
     render contentType: 'image/jpeg', data: img.decodeBase64(), status: 200
+}
+
+def checkGoogle() {
+    def params = [
+        uri: 'https://smartdevicemanagement.googleapis.com',
+        timeout: 5
+    ]
+    asynchttpGet(handleCheckGoogle, params)
+}
+
+def handleCheckGoogle(resp, data) {
+    if (resp.hasError() && (resp.getStatus() != 404)) {
+        if (state.online) {
+            log.warn('Google connection outage detected')
+        }
+        state.online = false
+    } else {
+        if (!state.online) {
+            log.info('Google connection recovered')
+            recover()
+        }
+        state.online = true
+    }
 }
