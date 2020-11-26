@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.3.2
+ *  version: 0.3.3
  */
 
 definition(
@@ -340,10 +340,11 @@ def handleBackoffRetryGet(map) {
 }
 
 def makeRealDevice(device) {
+    def deviceType = "Google Nest ${device.type}"
     try {
         addChildDevice(
             'dkilgore90',
-            "Google Nest ${device.type}",
+            deviceType.toString(),
             device.id,
             [
                 name: device.label,
