@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.3.3
+ *  version: 0.4.0
  */
 
 definition(
@@ -171,7 +171,7 @@ def getCredentials() {
 
 def handleAuthRedirect() {
     log.info('successful redirect from google')
-    unschedule()
+    unschedule(refreshLogin)
     def authCode = params.code
     login(authCode)
     runEvery1Hour refreshLogin
@@ -198,13 +198,17 @@ def mainPageLink() {
 
 def updated() {
     log.info 'Google SDM API updating'
-    initialize()
+    rescheduleLogin()
+    runEvery10Minutes checkGoogle
+    subscribe(location, 'systemStart', initialize)
 }
 
 def installed() {
     log.info 'Google SDM API installed'
     //initialize()
     createAccessToken()
+    runEvery10Minutes checkGoogle
+    subscribe(location, 'systemStart', initialize)
 }
 
 def uninstalled() {
@@ -212,12 +216,28 @@ def uninstalled() {
     removeChildren()
     deleteEventSubscription()
     unschedule()
+    unsubscribe()
 }
 
-def initialize() {
-    unschedule()
-    refreshLogin()
-    runEvery1Hour refreshLogin
+def initialize(evt) {
+    log.debug(evt)
+    recover()
+}
+
+def recover() {
+    rescheduleLogin()
+    refreshAll()
+}
+
+def rescheduleLogin() {
+    unschedule(refreshLogin)
+    if (state?.googleRefreshToken) {
+        refreshLogin()
+        runEvery1Hour refreshLogin
+        if (state.eventSubscription != 'v2') {
+            updateEventSubscription()
+        }
+    }
 }
 
 def login(String authCode) {
@@ -310,13 +330,13 @@ def handleDeviceList(resp, data) {
         }
         if (respCode == 401 && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
-            initialize()
+            rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceList, data.params, data)
         } else if (respCode == 429 && data.backoffCount < 5) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
-            runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+            //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.warn("Device-list response code: ${respCode}, body: ${respError}")
         }
@@ -462,6 +482,11 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
 
 def createEventSubscription() {
     log.info('Creating Google pub/sub event subscription')
+    def params = buildSubscriptionRequest()
+    asynchttpPut(putResponse, params, [params: params])
+}
+
+def buildSubscriptionRequest() {
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
@@ -470,10 +495,15 @@ def createEventSubscription() {
         topic: 'projects/sdm-prod/topics/enterprise-' + projectId,
         pushConfig: [
             pushEndpoint: getFullApiServerUrl() + '/events?access_token=' + state.accessToken
+        ],
+        messageRetentionDuration: '600s',
+        retryPolicy: [
+            minimumBackoff: "10s",
+            maximumBackoff: "600s"
         ]
     ]
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
-    asynchttpPut(putResponse, params, [params: params])
+    return params
 }
 
 def putResponse(resp, data) {
@@ -490,12 +520,43 @@ def putResponse(resp, data) {
         log.error("createEventSubscription returned status code ${respCode} -- ${respError}")
     } else {
         logDebug(resp.getJson())
+        state.eventSubscription = 'v2'
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
-        initialize()
+        rescheduleLogin()
         data.isRetry = true
-        asynchttpPut(handlePostCommand, data.params, data)
+        asynchttpPut(putResponse, data.params, data)
+    }
+}
+
+def updateEventSubscription() {
+    log.info('Updating Google pub/sub event subscription')
+    def params = buildSubscriptionRequest()
+    params.body = [subscription: params.body]
+    params.body.updateMask = 'messageRetentionDuration,retryPolicy'
+    asynchttpPatch(patchResponse, params, [params: params])
+}
+
+def patchResponse(resp, data) {
+    def respCode = resp.getStatus()
+    if (respCode != 200) {
+        def respError = ''
+        try {
+            respError = resp.getErrorJson()
+        } catch (Exception ignored) {
+            // no response body
+        }
+        log.error("updateEventSubscription returned status code ${respCode} -- ${respError}")
+    } else {
+        logDebug(resp.getJson())
+        state.eventSubscription = 'v2'
+    }
+    if (respCode == 401 && !data.isRetry) {
+        log.warn('Authorization token expired, will refresh and retry.')
+        rescheduleLogin()
+        data.isRetry = true
+        asynchttpPatch(patchResponse, data.params, data)
     }
 }
 
@@ -504,14 +565,29 @@ def postEvents() {
     def dataString = new String(request.JSON?.message.data.decodeBase64())
     logDebug(dataString)
     def dataJson = new JsonSlurper().parseText(dataString)
-    def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
-    def device = getChildDevice(deviceId)
-    if (device != null) {
-        // format back to millisecond decimal places in case the timestamp has micro-second resolution
-        int periodIndex = dataJson.timestamp.lastIndexOf('.')
+    // format back to millisecond decimal places in case the timestamp has micro-second resolution
+    int periodIndex = dataJson.timestamp.lastIndexOf('.')
+    if (periodIndex) {
         dataJson.timestamp = dataJson.timestamp.substring(0, (periodIndex + 4))
         dataJson.timestamp = dataJson.timestamp+"Z" 
-        
+    } else {
+        log.warn("unexpected timestamp resolution: ${dataJson.timestamp}")
+    }
+
+    try {
+        if (toDateTime(dataJson.timestamp) < new Date(state.lastRecovery)) {
+            logDebug("Dropping event as its timestamp ${dataJson.timestamp} is before lastRecovery ${state.lastRecovery}")
+            return
+        }
+    } catch (java.text.ParseException e) {
+        log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastRecovery: ${state.lastRecovery}")
+    } catch (IllegalArgumentException) {
+        //state.lastRecovery is null
+        state.lastRecovery = 0
+    }
+    def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
+    def device = getChildDevice(deviceId)
+    if (device != null) {        
         def lastEvent = device.currentValue('lastEventTime')
         if (lastEvent == null) {
             lastEvent = '1970-01-01T00:00:00.000Z'
@@ -521,6 +597,7 @@ def postEvents() {
             timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
         } catch (java.text.ParseException e) {
             //don't expect this to ever fail - catch for safety only
+            log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent}")
         }
         if ( timeCompare >= 0) {
             def utcTimestamp = toDateTime(dataJson.timestamp)
@@ -559,6 +636,17 @@ def logToken() {
     log.debug("Access Token: ${state.googleAccessToken}")
 }
 
+def refreshAll() {
+    log.info('Dropping stale events with timestamp < now, and refreshing devices')
+    state.lastRecovery = now()
+    def children = getChildDevices()
+    children.each {
+        if (it != null) {
+            getDeviceData(it)
+        }
+    }
+}
+
 def getDeviceData(com.hubitat.app.DeviceWrapper device) {
     log.info("Refresh device details for ${device}")
     def deviceId = device.getDeviceNetworkId()
@@ -580,13 +668,13 @@ def handleDeviceGet(resp, data) {
         }
         if (respCode == 401 && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
-            initialize()
+            rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceGet, data.params, data)
         } else if (respCode == 429 && data.backoffCount < 5) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
-            runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+            //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.error("Device-get response code: ${respCode}, body: ${respError}")
         }
@@ -656,13 +744,13 @@ def handlePostCommand(resp, data) {
         }
         if (respCode == 401 && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
-            initialize()
+            rescheduleLogin()
             data.isRetry = true
             asynchttpPost(handlePostCommand, data.params, data)
         } else if (respCode == 429 && data.backoffCount < 5) {
             log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             data.backoffCount = (data.backoffCount ?: 0) + 1
-            runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.error("executeCommand ${data.command} response code: ${respCode}, body: ${respError}")
         }
@@ -720,4 +808,27 @@ def getDashboardImg() {
     logDebug("Rendering image from raw data for device: ${device}")
     def img = device.currentValue('rawImg')
     render contentType: 'image/jpeg', data: img.decodeBase64(), status: 200
+}
+
+def checkGoogle() {
+    def params = [
+        uri: 'https://smartdevicemanagement.googleapis.com',
+        timeout: 5
+    ]
+    asynchttpGet(handleCheckGoogle, params)
+}
+
+def handleCheckGoogle(resp, data) {
+    if (resp.hasError() && (resp.getStatus() != 404)) {
+        if (state.online) {
+            log.warn('Google connection outage detected')
+        }
+        state.online = false
+    } else {
+        if (!state.online) {
+            log.info('Google connection recovered')
+            recover()
+        }
+        state.online = true
+    }
 }
