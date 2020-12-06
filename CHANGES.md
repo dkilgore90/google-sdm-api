@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-12-05
+
+### sdm-api-app:0.4.0
+* Subscribe to startup events -- refresh all devices and discard stale updates from Google
+* Modify Google event subscription to reduce the retained backlog in the event of an outage
+
 ## 2020-11-25
 
 ### sdm-api-app:0.3.3
