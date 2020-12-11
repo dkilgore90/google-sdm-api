@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.2.2
+ *  version: 0.3.0
  */
 
 metadata {
@@ -29,17 +29,20 @@ metadata {
         attribute 'rawImg', 'string'
         attribute 'lastEventTime', 'string'
         attribute 'lastEventType', 'string'
+        attribute 'streamUrl', 'string'
     }
     
     preferences {
         input 'minimumMotionTime', 'number', title: 'Motion timeout (s)', required: true, defaultValue: 15
         input 'minimumPresenceTime', 'number', title: 'Presence timeout (s)', required: true, defaultValue: 15
         input 'minimumSoundTime', 'number', title: 'Sound timeout (s)', required: true, defaultValue: 15
-    
+
         input 'personImageCapture', 'bool', title: 'Person - Capture image?', required: true, defaultValue: true
         input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', required: true, defaultValue: true
         input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', required: true, defaultValue: true
-    
+
+        input 'enableVideoStream', 'bool', title: 'Enable Video Stream?', required: true, defaultValue: false
+
         input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
     }
 }
@@ -63,13 +66,29 @@ def updated() {
 }
 
 def uninstalled() {
+    unschedule()
 }
 
 def initialize() {
+    if (enableVideoStream) {
+        Random rnd = new Random()
+        parent.deviceGenerateStream(device)
+        schedule("${rnd.nextInt(60)} ${rnd.nextInt(4)}/4 * ? * * *", extendStream)
+    } else {
+        unschedule(extendStream)
+        if (state.streamUrl) {
+            parent.deviceStopStream(device, state.streamExtensionToken)
+        }
+        state.remove('streamUrl')
+        state.remove('streamToken')
+        state.remove('streamExtensionToken')
+        device.sendEvent(name: 'streamUrl', value: ' ')
+    }
     device.sendEvent(name: 'presence', value: device.currentValue('presence') ?: 'not present')
     device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
     device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
     device.sendEvent(name: 'image', value: device.currentValue('image') ?: '<img src="" />')
+    device.sendEvent(name: 'streamUrl', value: device.currentValue('streamUrl') ?: ' ')
 }
 
 def refresh() {
@@ -134,6 +153,23 @@ def shouldGetImage(String event) {
         break
     }
 }
+
+def extendStream() {
+    parent.deviceExtendStream(device, state.streamExtensionToken)
+}
+
+def updateStreamData(Map data) {
+    String url = state.streamUrl
+    if (data.results.streamUrls) {
+        int queryIndex = data.results.streamUrls.rtspUrl.indexOf('?')
+        url = data.results.streamUrls.rtspUrl.substring(0, queryIndex)
+        state.streamUrl = url
+    }
+    device.sendEvent(name: 'streamUrl', value: "${url}?auth=${data.results.streamToken}")
+    state.streamToken = data.results.streamToken
+    state.streamExtensionToken = data.results.streamExtensionToken
+}
+
 def take() {
     log.warn('on-demand image capture is not supported')
 }

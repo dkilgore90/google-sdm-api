@@ -2,6 +2,23 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2020-12-10
+
+### sdm-api-app:0.5.0
+* Support device commands to create, refresh, and stop video streams
+
+### sdm-api-camera:0.3.0
+* New preference to enable/disable video stream
+* New attribute: streamUrl
+
+### sdm-api-display:0.3.0
+* New preference to enable/disable video stream
+* New attribute: streamUrl
+
+### sdm-api-doorbell:0.3.0
+* New preference to enable/disable video stream
+* New attribute: streamUrl
+
 ## 2020-12-05
 
 ### sdm-api-app:0.4.0
