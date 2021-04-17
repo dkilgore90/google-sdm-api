@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.5.0
+ *  version: 0.5.1
  */
 
 definition(
@@ -410,12 +410,12 @@ def processThermostatTraits(device, details) {
     def nestHvac = details.traits['sdm.devices.traits.ThermostatHvac']?.status
     def operState = ''
     fanStatus = fanStatus ? fanStatus.toLowerCase() : device.currentValue('thermostatFanMode')
-    if (nestHvac == 'OFF') {
-        operState = fanStatus == 'on' ? 'fan only' : 'idle'
+    if (nestHvac == 'OFF' || nestHvac == null) {
+        operState = fanStatus == 'ON' ? 'fan only' : 'idle'
     } else {
         operState = nestHvac?.toLowerCase()
     }
-    nestHvac ? sendEvent(device, [name: 'thermostatOperatingState', value: operState]) : null
+    operState ? sendEvent(device, [name: 'thermostatOperatingState', value: operState]) : null
     def tempScale = details.traits['sdm.devices.traits.Settings']?.temperatureScale
     tempScale ? sendEvent(device, [name: 'tempScale', value: tempScale]) : null
     if (tempScale && tempScale.substring(0, 1) != getTemperatureScale()) {
