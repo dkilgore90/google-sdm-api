@@ -391,7 +391,7 @@ def processTraits(device, details) {
 
 def processThermostatTraits(device, details) {
     def humidity = details.traits['sdm.devices.traits.Humidity']?.ambientHumidityPercent
-    humidity ? sendEvent(device, [name: 'humidity', value: humidity]) : null
+    humidity ? sendEvent(device, [name: 'humidity', value: humidity, unit: '%']) : null
     def connectivity = details.traits['sdm.devices.traits.Connectivity']?.status
     connectivity ? sendEvent(device, [name: 'connectivity', value: connectivity]) : null
     def fanStatus = details.traits['sdm.devices.traits.Fan']?.timerMode
@@ -436,7 +436,7 @@ def processThermostatTraits(device, details) {
     ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: new Double(ecoHeatPoint).round(1)]) : null
     coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: new Double(coolPoint).round(1)]) : null
     heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: new Double(heatPoint).round(1)]) : null
-    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1)]) : null
+    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1), unit: '°' + getTemperatureScale()]) : null
 }
 
 def translateNestAvailableModes(modes) {
