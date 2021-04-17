@@ -12,7 +12,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.5.0
+ *  version: 0.5.1
  */
 
 definition(
@@ -391,7 +391,7 @@ def processTraits(device, details) {
 
 def processThermostatTraits(device, details) {
     def humidity = details.traits['sdm.devices.traits.Humidity']?.ambientHumidityPercent
-    humidity ? sendEvent(device, [name: 'humidity', value: humidity]) : null
+    humidity ? sendEvent(device, [name: 'humidity', value: humidity, unit: '%']) : null
     def connectivity = details.traits['sdm.devices.traits.Connectivity']?.status
     connectivity ? sendEvent(device, [name: 'connectivity', value: connectivity]) : null
     def fanStatus = details.traits['sdm.devices.traits.Fan']?.timerMode
@@ -410,12 +410,12 @@ def processThermostatTraits(device, details) {
     def nestHvac = details.traits['sdm.devices.traits.ThermostatHvac']?.status
     def operState = ''
     fanStatus = fanStatus ? fanStatus.toLowerCase() : device.currentValue('thermostatFanMode')
-    if (nestHvac == 'OFF') {
-        operState = fanStatus == 'on' ? 'fan only' : 'idle'
+    if (nestHvac == 'OFF' || nestHvac == null) {
+        operState = fanStatus == 'ON' ? 'fan only' : 'idle'
     } else {
         operState = nestHvac?.toLowerCase()
     }
-    nestHvac ? sendEvent(device, [name: 'thermostatOperatingState', value: operState]) : null
+    operState ? sendEvent(device, [name: 'thermostatOperatingState', value: operState]) : null
     def tempScale = details.traits['sdm.devices.traits.Settings']?.temperatureScale
     tempScale ? sendEvent(device, [name: 'tempScale', value: tempScale]) : null
     if (tempScale && tempScale.substring(0, 1) != getTemperatureScale()) {
@@ -436,7 +436,7 @@ def processThermostatTraits(device, details) {
     ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: new Double(ecoHeatPoint).round(1)]) : null
     coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: new Double(coolPoint).round(1)]) : null
     heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: new Double(heatPoint).round(1)]) : null
-    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1)]) : null
+    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1), unit: '°' + getTemperatureScale()]) : null
 }
 
 def translateNestAvailableModes(modes) {
