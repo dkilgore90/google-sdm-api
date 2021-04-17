@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2021-04-13
+
+### sdm-api-app:0.5.1
+* Fix event processing logic to correctly update thermostatOperatingState for fan timer events
+* Add units to temperature and humidity attributes
+
 ## 2020-12-10
 
 ### sdm-api-app:0.5.0
