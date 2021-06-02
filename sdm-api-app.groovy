@@ -842,6 +842,8 @@ def handleImageGet(resp, data) {
             def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
             if (fullDevice.getFolderId()) {
                 createFile(img, data.device)
+            } else {
+                log.warn("Folder is being created for device: ${data.device}, this image will be dropped.")
             }
         } else {
             sendEvent(data.device, [name: 'rawImg', value: img])
@@ -1163,21 +1165,31 @@ def handleDeleteFilesBatch(resp, data) {
         } catch (Exception ignored) {
             // no response body
         }
-        if (respCode == 401 && !data.isRetry) {
+        // batch error at top-level is unexpected at any time -- log for further analysis
+        log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
+    } else {
+        def respData = new String(resp.getData().decodeBase64())
+        logDebug(respData)
+        def unauthorized = respData =~ /HTTP\/1.1 401/
+        if (unauthorized && !data.isRetry) {
             log.warn('Authorization token expired, will refresh and retry.')
             rescheduleLogin()
             data.isRetry = true
             asynchttpPost(handleDeleteFilesBatch, data.params, data)
-        //} else if (respCode == 429 && data.backoffCount < 5) {
-            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
-            //data.backoffCount = (data.backoffCount ?: 0) + 1
-            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
-        } else {
-            log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
         }
-    } else {
-        def respData = new String(resp.getData().decodeBase64())
-        logDebug(respData)
+        /** parse response for additional handling
+        def headers = resp.getHeaders()
+        def boundary = '--' + headers['Content-Type'].split('boundary=')[1]
+        respData.split(boundary).each{
+            def codeMatch = it =~ /HTTP\/1.1 (\d+)/
+            if (codeMatch && codeMatch[0][1] == '401') {
+                log.warn('Authorization token expired, will refresh and retry')
+                rescheduleLogin()
+                data.isRetry = true
+                asynchttpPost(handleDeleteFilesBatch, data.params, data)
+                return
+            }
+        }*/
         if (data.nextPage) {
             log.info("Additional pages of files to delete for device: ${data.device} -- will run query sequence again")
             getFilesToDelete(data.device)
