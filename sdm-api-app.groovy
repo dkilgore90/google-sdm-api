@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+//import groovy.json.JsonOutput
 
 /**
  *
@@ -12,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.5.1
+ *  version: 0.6.0
  */
 
 definition(
@@ -68,6 +69,9 @@ def mainPage() {
         
         section {
             input 'imgSize', 'enum', title: 'Image download size', required: false, submitOnChange: true, options: ['small', 'medium', 'large', 'max']
+        }
+        getGoogleDriveOptions()
+        section{
             input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false, submitOnChange: true
         }
         
@@ -102,16 +106,11 @@ def debugPage() {
 
 def getAuthLink() {
     if (projectId && credentials && state?.accessToken) {
-        def creds = getCredentials()
         section {
             href(
                 name       : 'authHref',
                 title      : 'Auth Link',
-                url        : 'https://nestservices.google.com/partnerconnections/' + projectId + 
-                                '/auth?redirect_uri=https://cloud.hubitat.com/oauth/stateredirect' +
-                                '&state=' + getHubUID() + '/apps/' + app.id + '/handleAuth?access_token=' + state.accessToken +
-                                '&access_type=offline&prompt=consent&client_id=' + creds.client_id + 
-                                '&response_type=code&scope=https://www.googleapis.com/auth/sdm.service https://www.googleapis.com/auth/pubsub',
+                url        : buildAuthUrl(),
                 description: 'Click this link to authorize with your Google Device Access Project'
             )
         }
@@ -122,6 +121,19 @@ def getAuthLink() {
     }
 }
 
+def buildAuthUrl() {
+    def creds = getCredentials()
+    url = 'https://nestservices.google.com/partnerconnections/' + projectId + 
+            '/auth?redirect_uri=https://cloud.hubitat.com/oauth/stateredirect' +
+            '&state=' + getHubUID() + '/apps/' + app.id + '/handleAuth?access_token=' + state.accessToken +
+            '&access_type=offline&prompt=consent&client_id=' + creds.client_id + 
+            '&response_type=code&scope=https://www.googleapis.com/auth/sdm.service https://www.googleapis.com/auth/pubsub'
+    if (googleDrive) {
+        url = url + ' https://www.googleapis.com/auth/drive.file'
+    }
+    return url
+}
+
 def getDiscoverButton() {
     if (state?.googleAccessToken != null) {
         section {
@@ -130,6 +142,17 @@ def getDiscoverButton() {
     } else {
         section {
             paragraph "Device discovery button is hidden until authorization is completed."
+        }
+    }
+}
+
+def getGoogleDriveOptions() {
+    section {
+        input 'googleDrive', 'bool', title: 'Use Google Drive for image storage?', required: false, defaultValue: false, submitOnChange: true
+    }
+    if (googleDrive) {
+        section {
+            input 'retentionDays', 'number', title: 'Days to retain images in Google Drive', required: false, defaultValue: 7, submitOnChange: true
         }
     }
 }
@@ -200,6 +223,7 @@ def updated() {
     log.info 'Google SDM API updating'
     rescheduleLogin()
     runEvery10Minutes checkGoogle
+    schedule('0 0 23 ? * *', driveRetentionJob)
     subscribe(location, 'systemStart', initialize)
 }
 
@@ -208,6 +232,7 @@ def installed() {
     //initialize()
     createAccessToken()
     runEvery10Minutes checkGoogle
+    schedule('0 0 23 ? * *', driveRetentionJob)
     subscribe(location, 'systemStart', initialize)
 }
 
@@ -324,7 +349,7 @@ def handleDeviceList(resp, data) {
     if (resp.hasError()) {
         def respError = ''
         try {
-            respError = resp.getErrorJson()
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
         } catch (Exception ignored) {
             // no response body
         }
@@ -333,9 +358,9 @@ def handleDeviceList(resp, data) {
             rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceList, data.params, data)
-        } else if (respCode == 429 && data.backoffCount < 5) {
-            log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
-            data.backoffCount = (data.backoffCount ?: 0) + 1
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
             //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.warn("Device-list response code: ${respCode}, body: ${respError}")
@@ -411,7 +436,7 @@ def processThermostatTraits(device, details) {
     def operState = ''
     fanStatus = fanStatus ? fanStatus.toLowerCase() : device.currentValue('thermostatFanMode')
     if (nestHvac == 'OFF' || nestHvac == null) {
-        operState = fanStatus == 'ON' ? 'fan only' : 'idle'
+        operState = fanStatus == 'on' ? 'fan only' : 'idle'
     } else {
         operState = nestHvac?.toLowerCase()
     }
@@ -513,7 +538,7 @@ def putResponse(resp, data) {
     } else if (respCode != 200) {
         def respError = ''
         try {
-            respError = resp.getErrorJson()
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
         } catch (Exception ignored) {
             // no response body
         }
@@ -543,7 +568,7 @@ def patchResponse(resp, data) {
     if (respCode != 200) {
         def respError = ''
         try {
-            respError = resp.getErrorJson()
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
         } catch (Exception ignored) {
             // no response body
         }
@@ -563,7 +588,7 @@ def patchResponse(resp, data) {
 def postEvents() {
     logDebug('Event received from Google pub/sub')
     def dataString = new String(request.JSON?.message.data.decodeBase64())
-    logDebug(dataString)
+    logDebug(dataString.replaceAll('[\n]', '').replaceAll('[ \t]+', ' '))
     def dataJson = new JsonSlurper().parseText(dataString)
     // format back to millisecond decimal places in case the timestamp has micro-second resolution
     int periodIndex = dataJson.timestamp.lastIndexOf('.')
@@ -662,7 +687,7 @@ def handleDeviceGet(resp, data) {
     if (resp.hasError()) {
         def respError = ''
         try {
-            respError = resp.getErrorJson()
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
         } catch (Exception ignored) {
             // no response body
         }
@@ -671,9 +696,9 @@ def handleDeviceGet(resp, data) {
             rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceGet, data.params, data)
-        } else if (respCode == 429 && data.backoffCount < 5) {
-            log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
-            data.backoffCount = (data.backoffCount ?: 0) + 1
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
             //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else {
             log.error("Device-get response code: ${respCode}, body: ${respError}")
@@ -750,7 +775,7 @@ def handlePostCommand(resp, data) {
     if (resp.hasError()) {
         def respError = ''
         try {
-            respError = resp.getErrorJson()
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
         } catch (Exception ignored) {
             // no response body
         }
@@ -759,9 +784,9 @@ def handlePostCommand(resp, data) {
             rescheduleLogin()
             data.isRetry = true
             asynchttpPost(handlePostCommand, data.params, data)
-        } else if (respCode == 429 && data.backoffCount < 5) {
-            log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
-            data.backoffCount = (data.backoffCount ?: 0) + 1
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
             //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
         } else if (respCode == 400 & data.command == 'sdm.devices.commands.CameraLiveStream.ExtendRtspStream') {
             log.warn("${data.device} stream expired, generating new stream")
@@ -813,9 +838,17 @@ def handleImageGet(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 200) {
         def img = resp.getData()
-        sendEvent(data.device, [name: 'rawImg', value: img])
-        sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()} />", isStateChange: true])
-//        sendEvent(data.device, [name: 'image', value: "<img src='data:image/jpeg;base64, ${img}' />"])
+        if (googleDrive) {
+            def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
+            if (fullDevice.getFolderId()) {
+                createFile(img, data.device)
+            } else {
+                log.warn("Folder is being created for device: ${data.device}, this image will be dropped.")
+            }
+        } else {
+            sendEvent(data.device, [name: 'rawImg', value: img])
+            sendEvent(data.device, [name: 'image', value: "<img src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()} />", isStateChange: true])
+        }
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")
     }
@@ -849,5 +882,331 @@ def handleCheckGoogle(resp, data) {
             recover()
         }
         state.online = true
+    }
+}
+
+def createFile(img, device) {
+    def uri = 'https://www.googleapis.com/drive/v3/files'
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def contentType = 'application/json'
+    def ts = now()
+    def fullDevice = getChildDevice(device.getDeviceNetworkId())
+    def body = [
+        mimeType: 'image/jpeg',
+        name: "${device}-${ts}.jpg",
+        parents: [
+            fullDevice.getFolderId()
+        ]
+    ]
+    def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+    logDebug("Creating Google Drive file for device image: ${device}")
+    asynchttpPost(handleCreateFile, params, [device: device, params: params, img: img])
+}
+
+def handleCreateFile(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpPost(handleCreateFile, data.params, data)
+        } else if (respCode == 404) {
+            log.warn("Known folder id not found for device: ${data.device} -- resetting. A new folder will be created automatically.")
+            def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
+            fullDevice.setFolderId('')
+            fullDevice.getFolderId()
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("Create file -- response code: ${respCode}, body: ${respError}")
+        }
+    } else {
+        def respJson = resp.getJson()
+        uploadDrive(respJson.id, data.img, data.device)
+    }
+}
+
+def uploadDrive(id, img, device) {
+    def uri = "https://www.googleapis.com/upload/drive/v3/files/${id}"
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def query = [ uploadType: 'media' ]
+    def contentType = 'application/octet-stream'
+    def body = img.decodeBase64()
+    def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+    logDebug("Uploading image data to Google Drive file for device: ${device}")
+    asynchttpPatch(handleUploadDrive, params, [device: device, params: params, photoId: id])
+}
+
+def handleUploadDrive(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpPatch(handleUploadDrive, data.params, data)
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("Upload image data to file -- response code: ${respCode}, body: ${respError}")
+        }
+    } else {
+        getPhotoDataDrive(data.photoId, data.device)
+    }
+}
+
+def getPhotoDataDrive(photoId, device) {
+    def uri = "https://www.googleapis.com/drive/v3/files/${photoId}"
+    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+    def contentType = 'application/json'
+    def query = [ fields: 'webContentLink']
+    def params = [ uri: uri, headers: headers, contentType: contentType, query: query ]
+    logDebug("Retrieving photo by id to get image url for device: ${device}")
+    asynchttpGet(handleGetPhotoDataDrive, params, [device: device, params: params])
+}
+
+def handleGetPhotoDataDrive(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpGet(handlePhotoGet, data.params, data)
+        } else {
+            log.warn("Photo-get response code: ${respCode}, body: ${respError}")
+        }
+    } else {
+        def respJson = resp.getJson()
+        sendEvent(data.device, [name: 'image', value: '<img src="' + "${respJson.webContentLink}" + '" />', isStateChange: true])
+    }
+}
+
+def createFolder(device) {
+    def uri = 'https://www.googleapis.com/drive/v3/files'
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def contentType = 'application/json'
+    def body = [
+        mimeType: 'application/vnd.google-apps.folder',
+        name: "Nest images: ${device}"
+    ]
+    def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+    log.info("Creating Google Drive folder for device: ${device}")
+    asynchttpPost(handleCreateFolder, params, [device: device, params: params])
+}
+
+def handleCreateFolder(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpPost(handleCreateFolder, data.params, data)
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("Create folder -- response code: ${respCode}, body: ${respError}")
+        }
+    } else {
+        def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
+        def respJson = resp.getJson()
+        fullDevice.setFolderId(respJson.id)
+        setFolderPermissions(respJson.id, data.device)
+    }
+}
+
+def setFolderPermissions(folderId, device) {
+    def uri = "https://www.googleapis.com/drive/v3/files/${folderId}/permissions"
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def contentType = 'application/json'
+    def body = [
+        role: 'reader',
+        type: 'anyone',
+        allowFileDiscovery: false
+    ]
+    def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+    log.info("Setting Google Drive folder permissions for device: ${device}")
+    asynchttpPost(handleSetPermissions, params, [device: device, params: params])
+}
+
+def handleSetPermissions(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpPost(handleSetPermissions, data.params, data)
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("Set permissions -- response code: ${respCode}, body: ${respError}")
+        }
+    }
+}
+
+def getFilesToDelete(device) {
+    def retentionDate = new Date(now() - (1000 * 3600 * 24 * retentionDays)).format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", TimeZone.getTimeZone("UTC"))
+    def fullDevice = getChildDevice(device.getDeviceNetworkId())
+    def folderId = fullDevice.getFolderId()
+    def uri = 'https://www.googleapis.com/drive/v3/files'
+    def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+    def contentType = 'application/json'
+    def query = [ q: "modifiedTime < '${retentionDate}' and '${folderId}' in parents" ]
+    def params = [ uri: uri, headers: headers, contentType: contentType, query: query ]
+    log.info("Retrieving files to delete for device: ${device}, based on retentionDays: ${retentionDays}")
+    logDebug(params)
+    asynchttpGet(handleGetFilesToDelete, params, [device: device, params: params])
+}
+
+def handleGetFilesToDelete(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpGet(handleGetFilesToDelete, data.params, data)
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
+            //runIn(10, handleBackoffRetryPost, [overwrite: false, data: [callback: handleDeviceGet, data: data]])
+        } else {
+            log.error("Files to delete retrieval -- response code: ${respCode}, body: ${respError}")
+        }
+    } else {
+        def respJson = resp.getJson()
+        def nextPage = respJson.nextPageToken ? true : false
+        def idList = []
+        respJson.files.each {
+            idList.add(it.id)
+        }
+        if (idList) {
+            deleteFilesBatch(data.device, idList, nextPage)
+        } else {
+            log.info("No files found to delete -- device: ${data.device}")
+        }
+    }
+}
+
+def deleteFilesBatch(device, idList, nextPage) {
+    def uri = 'https://www.googleapis.com/batch/drive/v3'
+    def headers = [
+        Authorization: "Bearer ${state.googleAccessToken}",
+        'Content-Type': 'multipart/mixed; boundary=END_OF_PART'
+    ]
+    def requestContentType = 'text/plain'
+    def builder = new StringBuilder()
+    idList.each {
+        builder << '--END_OF_PART\r\n'
+        builder << 'Content-type: application/http\r\n\r\n'
+        builder << "DELETE https://www.googleapis.com/drive/v3/files/${it}\r\n\r\n"
+    }
+    builder << '--END_OF_PART--'
+    def body = builder.toString()
+    def params = [ uri: uri, headers: headers, body: body, requestContentType: requestContentType ]
+    log.info("Sending batched file delete request -- count: ${idList.size()} -- for device: ${device}")
+    logDebug(body)
+    asynchttpPost(handleDeleteFilesBatch, params, [device: device, params: params, nextPage: nextPage])
+}
+
+def handleDeleteFilesBatch(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        // batch error at top-level is unexpected at any time -- log for further analysis
+        log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
+    } else {
+        def respData = new String(resp.getData().decodeBase64())
+        logDebug(respData)
+        def unauthorized = respData =~ /HTTP\/1.1 401/
+        if (unauthorized && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpPost(handleDeleteFilesBatch, data.params, data)
+        }
+        /** parse response for additional handling
+        def headers = resp.getHeaders()
+        def boundary = '--' + headers['Content-Type'].split('boundary=')[1]
+        respData.split(boundary).each{
+            def codeMatch = it =~ /HTTP\/1.1 (\d+)/
+            if (codeMatch && codeMatch[0][1] == '401') {
+                log.warn('Authorization token expired, will refresh and retry')
+                rescheduleLogin()
+                data.isRetry = true
+                asynchttpPost(handleDeleteFilesBatch, data.params, data)
+                return
+            }
+        }*/
+        if (data.nextPage) {
+            log.info("Additional pages of files to delete for device: ${data.device} -- will run query sequence again")
+            getFilesToDelete(data.device)
+        }
+    }
+}
+
+def driveRetentionJob() {
+    if (googleDrive) {
+        log.info('Running Google Drive retention cleanup job')
+        def children = getChildDevices()
+        children.each {
+            if (it.hasCapability('ImageCapture')) {
+                getFilesToDelete(it)
+            }
+        }
+    } else {
+        log.info('Google Drive is not used for image archive, skipping retention job')
     }
 }
