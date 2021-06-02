@@ -2,6 +2,22 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2021-05-17
+
+### sdm-api-app:0.6.0
+* Feature: Use Google Drive for image storage
+* Fix case-sensitivity issue in fan timer state
+* Improve logging where JSON is dumped to remove newlines, extra spaces
+
+### sdm-api-camera:0.4.0
+* Feature: Use Google Drive for image storage
+
+### sdm-api-display:0.4.0
+* Feature: Use Google Drive for image storage
+
+### sdm-api-doorbell:0.4.0
+* Feature: Use Google Drive for image storage
+
 ## 2021-04-13
 
 ### sdm-api-app:0.5.1

@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.3.0
+ *  version: 0.4.0
  */
 
 metadata {
@@ -90,6 +90,7 @@ def initialize() {
     device.sendEvent(name: 'presence', value: device.currentValue('presence') ?: 'not present')
     device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
     device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
+    device.sendEvent(name: 'rawImg', value: device.currentValue('rawImg') ?: ' ')
     device.sendEvent(name: 'image', value: device.currentValue('image') ?: '<img src="" />')
     device.sendEvent(name: 'streamUrl', value: device.currentValue('streamUrl') ?: ' ')
 }
@@ -184,4 +185,18 @@ def updateStreamData(Map data) {
 
 def take() {
     log.warn('on-demand image capture is not supported')
+}
+
+def getFolderId() {
+    if (state.folderId) {
+        return state.folderId
+    } else {
+        device.sendEvent(name: 'rawImg', value: ' ')
+        parent.createFolder(device)
+        return false
+    }
+}
+
+def setFolderId(String id) {
+    state.folderId = id
 }

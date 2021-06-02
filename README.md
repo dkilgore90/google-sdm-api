@@ -33,7 +33,9 @@ Copy and paste the contents of your Oauth2 _credentials.json_ file downloaded fr
 
 Copy and paste your Google Device Access project ID into the `Google Device Access - Project ID` input field for the Google SDM API app.
 
-####NOTE: Don't forget to press the **Done** button to make sure the app sticks around!
+**NOTE**: Don't forget to press the **Done** button to make sure the app sticks around!
+
+**NOTE 2**: If you want to use Google Drive to store still images from Nest devices, please refer to the additional steps below in the [**Google Drive**](#google-drive) section.
 
 ### Authorization and Discovery
 On the Apps page, click the link to **Google SDM API**
@@ -53,6 +55,19 @@ The latest still image is downloaded when a device event is received (Doorbell, 
 using the `attribute` tile.  Simply select the device, and the attribute to use is `image`.
 
 Note: this currently only works for *Local* dashboards -- support for cloud dashboards coming in a future update.
+
+#### Google Drive
+New feature in App version 0.6.0, and corresponding Camera/Display/Doorbell driver versions 0.4.0, which allows the user to use
+Google Drive as storage for the still images downloaded from Nest events.  This feature enables the latest image to be displayed in
+both Local *and* Cloud dashboards.  Before enabling this feature, the user needs to enable the Drive API:
+
+1. Login to the [Google API Console](https://console.developers.google.com/)
+2. In the top menu bar, click the `Select a Project` drop-down. Select the existing Project for your SDM API/Nest integration
+3. On the Google Dashboard that loads, click `+ ENABLE APIS and SERVICES` at the top
+4. Enter `Drive` in the search bar, then select the `Google Drive API`
+5. Click `ENABLE` on the next screen
+
+After enabling this feature using the preferences toggle, the user is required to re-authorize with Google in order to obtain the updated auth scopes.  An additional input will be displayed to set the number of days for retention of images (default 7) -- a cleanup job is scheduled to run at 11pm every night, which will clean up any files the App has uploaded that are older than this setting.
 
 ### Motion "sensor"
 A "Motion" event from Google will trigger a motion *Active* event in HE.  Since the current API does not send another event when motion is no longer detected,
