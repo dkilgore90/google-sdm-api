@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2021-07-07
+
+### sdm-api-app:0.6.1
+* Fix event processing logic so that thermostatOperatingState isn't clobbered by temp/humidity updates
+
 ## 2021-05-17
 
 ### sdm-api-app:0.6.0

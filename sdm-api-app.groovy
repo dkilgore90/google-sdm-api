@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.0
+ *  version: 0.6.1
  */
 
 definition(
@@ -435,7 +435,8 @@ def processThermostatTraits(device, details) {
     def nestHvac = details.traits['sdm.devices.traits.ThermostatHvac']?.status
     def operState = ''
     fanStatus = fanStatus ? fanStatus.toLowerCase() : device.currentValue('thermostatFanMode')
-    if (nestHvac == 'OFF' || nestHvac == null) {
+    def hvacRunning = isHvacRunning(device)
+    if (nestHvac == 'OFF' || (nestHvac == null && !hvacRunning)) {
         operState = fanStatus == 'on' ? 'fan only' : 'idle'
     } else {
         operState = nestHvac?.toLowerCase()
@@ -462,6 +463,15 @@ def processThermostatTraits(device, details) {
     coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: new Double(coolPoint).round(1)]) : null
     heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: new Double(heatPoint).round(1)]) : null
     temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1), unit: '°' + getTemperatureScale()]) : null
+}
+
+def isHvacRunning(device) {
+    def hvac = device.currentValue('thermostatOperatingState')
+    if (hvac == 'fan only' || hvac == 'idle') {
+        return false
+    } else {
+        return true
+    }
 }
 
 def translateNestAvailableModes(modes) {
