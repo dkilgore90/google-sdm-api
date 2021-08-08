@@ -14,7 +14,7 @@
       "required": true,
       "oauth": true,
       "primary": true,
-      "version": "0.6.1"
+      "version": "0.6.2"
     }
   ],
   "drivers": [
