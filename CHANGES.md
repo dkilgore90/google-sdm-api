@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2021-08-08
+
+### sdm-api-app:0.6.2
+* Bugfix: #59 -- Retry event subscription every hour
+* log/drop relationUpdate events since they are not handled in code
+
 ## 2021-07-07
 
 ### sdm-api-app:0.6.1
