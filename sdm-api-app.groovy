@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.1
+ *  version: 0.6.1.alpha
  */
 
 definition(
@@ -100,6 +100,9 @@ def debugPage() {
         }
         section {
             input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
+        }
+        section {
+            input 'cleanupDrive', 'button', title: 'Manually run Google Drive retention cleanup', submitOnChange: true
         }
     }
 }
@@ -331,6 +334,9 @@ def appButtonHandler(btn) {
         break
     case 'refreshToken':
         refreshLogin()
+        break
+    case 'cleanupDrive':
+        driveRetentionJob()
         break
     }
 }
@@ -619,6 +625,10 @@ def postEvents() {
     } catch (IllegalArgumentException) {
         //state.lastRecovery is null
         state.lastRecovery = 0
+    }
+    if (dataJson.relationUpdate) {
+        logDebug("Dropping unhandled 'relationUpdate' event. This generally represents a device added/deleted in your home, or a change to its room assignment in Google.")
+        return
     }
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
