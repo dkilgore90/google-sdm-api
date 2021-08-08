@@ -1,14 +1,22 @@
 # Google SDM Api - App and Drivers for Hubitat Elevation
 
 ## Google Pre-requisite setup:
-Follow the [Get Started QuickStart](https://developers.google.com/nest/device-access/get-started) from Google
+Follow the [Get Started QuickStart](https://developers.google.com/nest/device-access/get-started) from Google. Steps are outlined below, along with modifications specific to integrating with Hubitat.
 
-Click on the blue "Enable the API and get an OAuth 2.0 Client ID" and follow the directions immediately above that blue button, with the following modification:
-
-**Enter _https://cloud.hubitat.com/oauth/stateredirect_ as the value for _Authorized redirect URIs_**
-
-Go to the [Cloud Pub/Sub API](https://console.developers.google.com/apis/library/pubsub.googleapis.com) page, and enable the Pub/Sub API
-for your Google Cloud Platform (GCP) project.
+1. [Go to the Device Access Console](https://console.nest.google.com/device-access)
+2. Login using the same Google account used to manage your Nest devices, and accept the **Google API** and **Device Access Sandbox** terms of service. (You do not need to create a project yet).
+3. Click on the blue "Enable the API and get an OAuth 2.0 Client ID" button in [this page section](https://developers.google.com/nest/device-access/get-started#set_up_google_cloud_platform).
+4. If you have an existing GCP project that you would like to use for Device Access, make sure you are logged into the admin account for that project first. Then select the existing project from the list of available projects after clicking the button. Otherwise, create a new project.
+5. Select Web Server when it asks "Where are you calling from?".
+6. Enter _https://cloud.hubitat.com/oauth/stateredirect_ as the value for **Authorized redirect URIs**
+7. Once setup is complete, copy the **OAuth 2.0 Client ID** and **Client Secret** values, and download the **Credentials JSON** to your local machine.  You will need these values later.
+8. [Return to the Device Access Console](https://console.nest.google.com/device-access)
+9. At the Console home screen, select **+ Create project**
+10. Enter a name for your project.
+11. Enter the **OAuth 2.0 Client ID** generated above during _Set up Google Cloud Platform_
+12. Enable events so that asynchronous events will be sent via Google Cloud Pub/Sub
+13. Upon completion, your project is assigned a **Project ID**, in the form of a UUID. You will need this when creating the Hubitat App later.
+14. Go to the [Cloud Pub/Sub API](https://console.developers.google.com/apis/library/pubsub.googleapis.com) page, and enable the Pub/Sub API for your Google Cloud Platform (GCP) project.
 
 ## Installation
 

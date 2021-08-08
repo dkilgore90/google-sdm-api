@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.1
+ *  version: 0.6.2
  */
 
 definition(
@@ -100,6 +100,9 @@ def debugPage() {
         }
         section {
             input 'deleteDevices', 'button', title: 'Delete all devices', submitOnChange: true
+        }
+        section {
+            input 'cleanupDrive', 'button', title: 'Manually run Google Drive retention cleanup', submitOnChange: true
         }
     }
 }
@@ -332,6 +335,9 @@ def appButtonHandler(btn) {
     case 'refreshToken':
         refreshLogin()
         break
+    case 'cleanupDrive':
+        driveRetentionJob()
+        break
     }
 }
 
@@ -521,6 +527,11 @@ def createEventSubscription() {
     asynchttpPut(putResponse, params, [params: params])
 }
 
+def retryEventSubscription() {
+    log.info('Retrying Google pub/sub event subscription, which failed previously')
+    createEventSubscription()
+}
+
 def buildSubscriptionRequest() {
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
@@ -544,7 +555,7 @@ def buildSubscriptionRequest() {
 def putResponse(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 409) {
-        log.warn('createEventSubscription returned status code 409 -- subscription already exists')
+        log.info('createEventSubscription returned status code 409 -- subscription already exists')
     } else if (respCode != 200) {
         def respError = ''
         try {
@@ -553,6 +564,7 @@ def putResponse(resp, data) {
             // no response body
         }
         log.error("createEventSubscription returned status code ${respCode} -- ${respError}")
+        runIn(3600, retryEventSubscription)
     } else {
         logDebug(resp.getJson())
         state.eventSubscription = 'v2'
@@ -619,6 +631,10 @@ def postEvents() {
     } catch (IllegalArgumentException) {
         //state.lastRecovery is null
         state.lastRecovery = 0
+    }
+    if (dataJson.relationUpdate) {
+        logDebug("Dropping unhandled 'relationUpdate' event. This generally represents a device added/deleted in your home, or a change to its room assignment in Google.")
+        return
     }
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
