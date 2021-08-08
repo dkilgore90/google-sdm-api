@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.1.alpha
+ *  version: 0.6.1.alpha.2
  */
 
 definition(
@@ -527,6 +527,11 @@ def createEventSubscription() {
     asynchttpPut(putResponse, params, [params: params])
 }
 
+def retryEventSubscription() {
+    log.info('Retrying Google pub/sub event subscription, which failed previously')
+    createEventSubscription()
+}
+
 def buildSubscriptionRequest() {
     def creds = getCredentials()
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
@@ -550,7 +555,7 @@ def buildSubscriptionRequest() {
 def putResponse(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 409) {
-        log.warn('createEventSubscription returned status code 409 -- subscription already exists')
+        log.info('createEventSubscription returned status code 409 -- subscription already exists')
     } else if (respCode != 200) {
         def respError = ''
         try {
@@ -559,6 +564,7 @@ def putResponse(resp, data) {
             // no response body
         }
         log.error("createEventSubscription returned status code ${respCode} -- ${respError}")
+        runIn(3600, retryEventSubscription)
     } else {
         logDebug(resp.getJson())
         state.eventSubscription = 'v2'
