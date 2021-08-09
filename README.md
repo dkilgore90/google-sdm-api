@@ -37,9 +37,9 @@ Repeat this process for each of the device handlers you want to install.
 ### Create the app
 On the Apps page press the **Add User App** button then click on **Google SDM API** in the list of available apps.
 
-Copy and paste the contents of your Oauth2 _credentials.json_ file downloaded from GCP into the `Google credentials.json` input field
+Copy and paste the contents of your Oauth2 _credentials.json_ file downloaded from GCP (step 7 in Google Pre-requisites above) into the `Google credentials.json` input field
 
-Copy and paste your Google Device Access project ID into the `Google Device Access - Project ID` input field for the Google SDM API app.
+Copy and paste your Google Device Access project ID (step 13 in Google Pre-requisites above) into the `Google Device Access - Project ID` input field for the Google SDM API app.
 
 **NOTE**: Don't forget to press the **Done** button to make sure the app sticks around!
 
