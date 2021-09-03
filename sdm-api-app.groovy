@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.2
+ *  version: 0.6.3
  */
 
 definition(
@@ -403,7 +403,7 @@ def makeRealDevice(device) {
             ]
         )
     } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
-        "${e.message} - you need to install the appropriate driver: ${device.type}"
+        log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
     } catch (IllegalArgumentException ignored) {
         //Intentionally ignored.  Expected if device id already exists in HE.
     }
