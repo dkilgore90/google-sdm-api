@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.2
+ *  version: 0.6.3
  */
 
 definition(
@@ -403,7 +403,7 @@ def makeRealDevice(device) {
             ]
         )
     } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
-        "${e.message} - you need to install the appropriate driver: ${device.type}"
+        log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
     } catch (IllegalArgumentException ignored) {
         //Intentionally ignored.  Expected if device id already exists in HE.
     }
@@ -457,18 +457,11 @@ def processThermostatTraits(device, details) {
     def coolPoint = details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.coolCelsius
     def heatPoint = details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.heatCelsius
     def temp = details.traits['sdm.devices.traits.Temperature']?.ambientTemperatureCelsius
-    if (getTemperatureScale() == 'F') {
-        ecoCoolPoint = ecoCoolPoint ? celsiusToFahrenheit(ecoCoolPoint) : null
-        ecoHeatPoint = ecoHeatPoint ? celsiusToFahrenheit(ecoHeatPoint) : null
-        coolPoint = coolPoint ? celsiusToFahrenheit(coolPoint) : null
-        heatPoint = heatPoint ? celsiusToFahrenheit(heatPoint) : null
-        temp = temp ? celsiusToFahrenheit(temp) : null
-    }
-    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: new Double(ecoCoolPoint).round(1)]) : null
-    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: new Double(ecoHeatPoint).round(1)]) : null
-    coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: new Double(coolPoint).round(1)]) : null
-    heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: new Double(heatPoint).round(1)]) : null
-    temp ? sendEvent(device, [name: 'temperature', value: new Double(temp).round(1), unit: '°' + getTemperatureScale()]) : null
+    ecoCoolPoint ? sendEvent(device, [name: 'ecoCoolPoint', value: convertAndRoundTemp(ecoCoolPoint)]) : null
+    ecoHeatPoint ? sendEvent(device, [name: 'ecoHeatPoint', value: convertAndRoundTemp(ecoHeatPoint)]) : null
+    coolPoint ? sendEvent(device, [name: 'coolingSetpoint', value: convertAndRoundTemp(coolPoint)]) : null
+    heatPoint ? sendEvent(device, [name: 'heatingSetpoint', value: convertAndRoundTemp(heatPoint)]) : null
+    temp ? sendEvent(device, [name: 'temperature', value: convertTemperatureIfNeeded(temp, 'C', 1), unit: '°' + getTemperatureScale()]) : null
 }
 
 def isHvacRunning(device) {
@@ -490,6 +483,14 @@ def translateNestAvailableModes(modes) {
         }
     }
     return trModes
+}
+
+def convertAndRoundTemp(value) {
+    if (getTemperatureScale() == 'F') {
+        return new Double(celsiusToFahrenheit(value)).round()
+    } else {
+        return new Double(value * 2).round() / 2
+    }
 }
 
 def processCameraTraits(device, details) {
