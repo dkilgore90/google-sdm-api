@@ -2,9 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## 2021-09-02
+## 2021-09-24
 
 ### sdm-api-app:0.6.3
+* Normalize setpoints to full-degrees (\*F) and half-degrees (\*C)
 * Fix line intended to log warning for missing driver, which was instead returning the string
 
 ## 2021-08-08
