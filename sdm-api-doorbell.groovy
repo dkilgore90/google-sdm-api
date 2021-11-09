@@ -195,34 +195,15 @@ def getFolderId() {
     }
 }
 
-def setFolderId(String id) {
-    state.folderId = id
+def setState(String attr, value) {
+    logDebug("updating state -- ${attr}: ${value}")
+    state[attr] = value
 }
 
-def setVideoFormat(String format) {
-    state.videoFmt = format
-}
-
-def setImgWidth(size) {
-    state.imgWidth = size
-}
-
-def setImgHeight(size) {
-    state.imgHeight = size
-}
-
-def getImgWidth() {
-    return state.imgWidth
-}
-
-def setRoom(String room) {
-    state.room = room
-}
-
-def setCaptureType(String type) {
-    state.captureType = type
-}
-
-def getCaptureType() {
-    return state.captureType
+def getState(String attr) {
+    if (state[attr]) {
+        return state[attr]
+    } else {
+        refresh()
+    }
 }

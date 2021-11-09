@@ -265,6 +265,10 @@ def rescheduleLogin() {
         if (state.eventSubscription != 'v2') {
             updateEventSubscription()
         }
+        if (!state.attributeMigration) {
+            discover()
+            state.attributeMigration = true
+        }
     }
 }
 
@@ -412,7 +416,7 @@ def makeRealDevice(device) {
 def processTraits(device, details) {
     logDebug("Processing data for ${device}: ${details}")
     def room = details.parentRelations?.getAt(0)?.displayName
-    room ? device.setRoom(room) : null
+    room ? device.setState('room', room) : null
     if (device.hasCapability('Thermostat')) {
         processThermostatTraits(device, details)
     } else {
@@ -495,15 +499,15 @@ def convertAndRoundTemp(value) {
 
 def processCameraTraits(device, details) {
     if (details?.traits?.get('sdm.devices.traits.CameraImage') != null) {
-        device.setCaptureType('image')
+        device.setState('captureType', 'image')
     } else {
-        device.setCaptureType('clip')
+        device.setState('captureType', 'clip')
     }
     def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
-    imgRes?.width ? device.setImgWidth(imgRes.width) : null
-    imgRes?.height ? device.setImgHeight(imgRes.height) : null
+    imgRes?.width ? device.setState('imgWidth', imgRes.width) : null
+    imgRes?.height ? device.setState('imgHeight', imgRes.height) : null
     def videoFmt = details?.traits?.get('sdm.devices.traits.CameraLiveStream')?.supportedProtocols?.getAt(0)
-    videoFmt ? device.setVideoFormat(videoFmt) : null
+    videoFmt ? device.setState('videoFormat', videoFmt) : null
 }
 
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadId, String threadState) {
@@ -525,7 +529,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String
         }
         def abbrKey = key.tokenize('.')[-1]
         if (device.shouldGetImage(abbrKey)) {
-            String captureType = device.getCaptureType()
+            String captureType = device.getState('captureType')
             if (captureType == 'image') {
                 deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
             } else if (captureType == 'clip' && events.containsKey('sdm.devices.events.CameraClipPreview.ClipPreview')) {
@@ -665,7 +669,7 @@ def postEvents() {
             }
             if ( timeCompare >= 0) {
                 def utcTimestamp = toDateTime(dataJson.timestamp)
-                device.setLastEventTime(utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone))
+                device.setState('lastEventTime', utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone))
                 processThermostatTraits(device, dataJson.resourceUpdate)
             } else {
                 log.warn("Received event out of order -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent} -- refreshing device ${device}")
@@ -866,7 +870,7 @@ def getWidthFromSize(device) {
         break
     case 'max':
     default:
-        return device.getImgWidth() ?: 1920
+        return device.getState('imgWidth') ?: 1920
         break
     }
 }
@@ -962,7 +966,7 @@ def handleCreateFile(resp, data) {
         } else if (respCode == 404) {
             log.warn("Known folder id not found for device: ${data.device} -- resetting. A new folder will be created automatically.")
             def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
-            fullDevice.setFolderId('')
+            fullDevice.setState('folderId', '')
             fullDevice.getFolderId()
         //} else if (respCode == 429 && data.backoffCount < 5) {
             //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
@@ -1084,7 +1088,7 @@ def handleCreateFolder(resp, data) {
     } else {
         def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
         def respJson = resp.getJson()
-        fullDevice.setFolderId(respJson.id)
+        fullDevice.setState('folderId', respJson.id)
         setFolderPermissions(respJson.id, data.device)
     }
 }

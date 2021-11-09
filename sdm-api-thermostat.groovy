@@ -181,10 +181,7 @@ def getLastEventTime() {
     return state.lastEventTime
 }
 
-def setLastEventTime(String timestamp) {
-    state.lastEventTime = timestamp
-}
-
-def setRoom(String room) {
-    state.room = room
+def setState(String attr, value) {
+    logDebug("updating state -- ${attr}: ${value}")
+    state[attr] = value
 }
