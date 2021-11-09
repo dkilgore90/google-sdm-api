@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.4.0
+ *  version: 1.0.0.alpha
  */
 
 metadata {
@@ -23,12 +23,7 @@ metadata {
         capability 'SoundSensor'
         capability 'Initialize'
 
-        attribute 'room', 'string'
-        attribute 'imgWidth', 'number'
-        attribute 'imgHeight', 'number'
         attribute 'rawImg', 'string'
-        attribute 'lastEventTime', 'string'
-        attribute 'lastEventType', 'string'
         attribute 'streamUrl', 'string'
     }
     
@@ -70,7 +65,7 @@ def uninstalled() {
 }
 
 def initialize() {
-    if (enableVideoStream) {
+    if (enableVideoStream && (state.videoFmt == 'RTSP')) {
         Random rnd = new Random()
         parent.deviceGenerateStream(device)
         schedule("${rnd.nextInt(60)} ${rnd.nextInt(4)}/4 * ? * * *", extendStream)
@@ -96,7 +91,7 @@ def refresh() {
     parent.getDeviceData(device)
 }
 
-def processPerson() {
+def processPerson(threadId=null, threadState=null) {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
     if (minimumPresenceTime == null) {
@@ -110,7 +105,7 @@ def presenceInactive() {
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
-def processMotion() {
+def processMotion(threadId=null, threadState=null) {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
     if (minimumMotionTime == null) {
@@ -124,7 +119,7 @@ def motionInactive() {
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
-def processSound() {
+def processSound(threadId=null, threadState=null) {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
     if (minimumSoundTime == null) {
@@ -148,6 +143,9 @@ def shouldGetImage(String event) {
         break
     case 'Sound':
         return soundImageCapture != null ? soundImageCapture : true
+        break
+    case 'ClipPreview':
+        return false
         break
     default:
         return true
@@ -187,4 +185,32 @@ def getFolderId() {
 
 def setFolderId(String id) {
     state.folderId = id
+}
+
+def setVideoFormat(String format) {
+    state.videoFmt = format
+}
+
+def setImgWidth(size) {
+    state.imgWidth = size
+}
+
+def setImgHeight(size) {
+    state.imgHeight = size
+}
+
+def getImgWidth() {
+    return state.imgWidth
+}
+
+def setRoom(String room) {
+    state.room = room
+}
+
+def setCaptureType(String type) {
+    state.captureType = type
+}
+
+def getCaptureType() {
+    return state.captureType
 }

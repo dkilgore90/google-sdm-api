@@ -10,7 +10,7 @@
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.1.5
+ *  version: 1.0.0.alpha
  */
 
 metadata {
@@ -25,14 +25,12 @@ metadata {
         capability 'RelativeHumidityMeasurement'
         capability 'Refresh'
 
-        attribute 'room', 'string'
         attribute 'connectivity', 'string'
         attribute 'fanTimeout', 'string'
         attribute 'ecoMode', 'string'
         attribute 'ecoCoolPoint', 'number'
         attribute 'ecoHeatPoint', 'number'
         attribute 'tempScale', 'string'
-        attribute 'lastEventTime', 'string'
 
         command 'fanOn', [[name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setThermostatFanMode', [[name: 'fanmode', type: 'ENUM', constraints: ['auto', 'on']], [name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
@@ -177,4 +175,16 @@ def fanCirculate() {
 
 def emergencyHeat() {
     log.info("emergencyHeat is not currently supported")
+}
+
+def getLastEventTime() {
+    return state.lastEventTime
+}
+
+def setLastEventTime(String timestamp) {
+    state.lastEventTime = timestamp
+}
+
+def setRoom(String room) {
+    state.room = room
 }

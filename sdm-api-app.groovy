@@ -13,7 +13,7 @@ import groovy.json.JsonSlurper
  *  from the copyright holder
  *  Software is provided without warranty and your use of it is at your own risk.
  *
- *  version: 0.6.3
+ *  version: 1.0.0.alpha
  */
 
 definition(
@@ -412,7 +412,7 @@ def makeRealDevice(device) {
 def processTraits(device, details) {
     logDebug("Processing data for ${device}: ${details}")
     def room = details.parentRelations?.getAt(0)?.displayName
-    room ? sendEvent(device, [name: 'room', value: room]) : null
+    room ? device.setRoom(room) : null
     if (device.hasCapability('Thermostat')) {
         processThermostatTraits(device, details)
     } else {
@@ -494,30 +494,44 @@ def convertAndRoundTemp(value) {
 }
 
 def processCameraTraits(device, details) {
-    if (details.events) {
-        processCameraEvents(device, details.events)
+    if (details?.traits?.get('sdm.devices.traits.CameraImage') != null) {
+        device.setCaptureType('image')
+    } else {
+        device.setCaptureType('clip')
     }
     def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
-    imgRes?.width ? sendEvent(device, [name: 'imgWidth', value: imgRes.width]) : null
-    imgRes?.height ? sendEvent(device, [name: 'imgHeight', value: imgRes.height]) : null   
+    imgRes?.width ? device.setImgWidth(imgRes.width) : null
+    imgRes?.height ? device.setImgHeight(imgRes.height) : null
+    def videoFmt = details?.traits?.get('sdm.devices.traits.CameraLiveStream')?.supportedProtocols?.getAt(0)
+    videoFmt ? device.setVideoFormat(videoFmt) : null
 }
 
-def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events) {
+def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadId, String threadState) {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             device.processChime()
             device.processPerson() //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
-            device.processPerson()
+            device.processPerson(threadId, threadState)
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
-            device.processMotion()
+            device.processMotion(threadId, threadState)
         } else if (key == 'sdm.devices.events.CameraSound.Sound') {
-            device.processSound()
+            device.processSound(threadId, threadState)
+        } else if (key == 'sdm.devices.events.CameraClipPreview.ClipPreview') {
+            if (events.size() == 1) {
+                // If we hit this case, need to add sessionId lookup/handling
+                log.error('Unhandled ClipPreview event without another event type, please notify developer')
+            }
         }
         def abbrKey = key.tokenize('.')[-1]
-        sendEvent(device, [name: 'lastEventType', value: abbrKey])
         if (device.shouldGetImage(abbrKey)) {
-            deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+            String captureType = device.getCaptureType()
+            if (captureType == 'image') {
+                deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
+            } else if (captureType == 'clip' && events.containsKey('sdm.devices.events.CameraClipPreview.ClipPreview')) {
+                // TODO: determine how to download/upload the clip to Google Drive for archive
+                sendEvent(device, [name: 'image', value: '<video autoplay loop><source src="' + "${events.get('sdm.devices.events.CameraClipPreview.ClipPreview').previewUrl}" + '"></video>', isStateChange: true]))
+            }
         }
     }
 }
@@ -639,25 +653,26 @@ def postEvents() {
     }
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
-    if (device != null) {        
-        def lastEvent = device.currentValue('lastEventTime')
-        if (lastEvent == null) {
-            lastEvent = '1970-01-01T00:00:00.000Z'
-        }
-        def timeCompare = -1
-        try {
-            timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
-        } catch (java.text.ParseException e) {
-            //don't expect this to ever fail - catch for safety only
-            log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent}")
-        }
-        if ( timeCompare >= 0) {
-            def utcTimestamp = toDateTime(dataJson.timestamp)
-            sendEvent(device, [name: 'lastEventTime', value: utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone)])
-            processTraits(device, dataJson.resourceUpdate)
+    if (device != null) {     
+        if (device.hasCapability('Thermostat')) {
+            def lastEvent = device.getLastEventTime() ?: '1970-01-01T00:00:00.000Z'
+            def timeCompare = -1
+            try {
+                timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
+            } catch (java.text.ParseException e) {
+                //don't expect this to ever fail - catch for safety only
+                log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent}")
+            }
+            if ( timeCompare >= 0) {
+                def utcTimestamp = toDateTime(dataJson.timestamp)
+                device.setLastEventTime(utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone))
+                processThermostatTraits(device, dataJson.resourceUpdate)
+            } else {
+                log.warn("Received event out of order -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent} -- refreshing device ${device}")
+                getDeviceData(device)
+            }
         } else {
-            log.warn("Received event out of order -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent} -- refreshing device ${device}")
-            getDeviceData(device)
+            processCameraEvents(device, dataJson.resourceUpdate.events, dataJson.eventThreadId, dataJson.eventThreadState)
         }
     }
 }
@@ -851,7 +866,7 @@ def getWidthFromSize(device) {
         break
     case 'max':
     default:
-        return device.currentValue('imgWidth')
+        return device.getImgWidth() ?: 1920
         break
     }
 }
