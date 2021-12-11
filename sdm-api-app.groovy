@@ -498,10 +498,12 @@ def convertAndRoundTemp(value) {
 }
 
 def processCameraTraits(device, details) {
-    if (details?.traits?.get('sdm.devices.traits.CameraImage') != null) {
+    if (details?.traits?.get('sdm.devices.traits.CameraEventImage') != null) {
         device.setState('captureType', 'image')
-    } else {
+    } else if (details?.traits?.get('sdm.devices.traits.CameraClipPreview') != null) {
         device.setState('captureType', 'clip')
+    } else {
+        device.setState('captureType', 'none')
     }
     def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
     imgRes?.width ? device.setState('imgWidth', imgRes.width) : null
@@ -510,20 +512,20 @@ def processCameraTraits(device, details) {
     videoFmt ? device.setState('videoFormat', videoFmt) : null
 }
 
-def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadId, String threadState) {
+def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadState='') {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             device.processChime()
             device.processPerson() //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
-            device.processPerson(threadId, threadState)
+            device.processPerson(threadState)
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
-            device.processMotion(threadId, threadState)
+            device.processMotion(threadState)
         } else if (key == 'sdm.devices.events.CameraSound.Sound') {
-            device.processSound(threadId, threadState)
+            device.processSound(threadState)
         } else if (key == 'sdm.devices.events.CameraClipPreview.ClipPreview') {
             if (events.size() == 1) {
-                // If we hit this case, need to add sessionId lookup/handling
+                // If we hit this case, need to add sessionId lookup/handling so that we can correlate for `shouldGetImage()`
                 log.error('Unhandled ClipPreview event without another event type, please notify developer')
             }
         }
@@ -676,7 +678,7 @@ def postEvents() {
                 getDeviceData(device)
             }
         } else {
-            processCameraEvents(device, dataJson.resourceUpdate.events, dataJson.eventThreadId, dataJson.eventThreadState)
+            processCameraEvents(device, dataJson.resourceUpdate.events, dataJson.eventThreadState)
         }
     }
 }

@@ -100,13 +100,28 @@ def processChime() {
     device.sendEvent(name: 'pushed', value: 1, isStateChange: true)
 }
 
-def processPerson(threadId=null, threadState=null) {
+def processPerson(String threadState='') {
+    switch (threadState) {
+    case 'ENDED':
+        presenceInactive()
+        break
+    case 'STARTED':
+    case 'UPDATED':
+        presenceActive()
+        break
+    case '':
+        presenceActive()
+        if (minimumPresenceTime == null) {
+            device.updateSetting('minimumPresenceTime', 15)
+        }
+        runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
+        break
+    }
+}
+
+def presenceActive() {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
-    if (minimumPresenceTime == null) {
-        device.updateSetting('minimumPresenceTime', 15)
-    }
-    runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
 }
 
 def presenceInactive() {
@@ -114,13 +129,28 @@ def presenceInactive() {
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
-def processMotion(threadId=null, threadState=null) {
+def processMotion(String threadState='') {
+    switch (threadState) {
+    case 'ENDED':
+        motionInactive()
+        break
+    case 'STARTED':
+    case 'UPDATED':
+        motionActive()
+        break
+    case '':
+        motionActive()
+        if (minimumMotionTime == null) {
+            device.updateSetting('minimumMotionTime', 15)
+        }
+        runIn(minimumMotionTime, motionInactive, [overwrite: true])
+        break
+    }
+}
+
+def motionActive() {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
-    if (minimumMotionTime == null) {
-        device.updateSetting('minimumMotionTime', 15)
-    }
-    runIn(minimumMotionTime, motionInactive, [overwrite: true])
 }
 
 def motionInactive() {
@@ -128,13 +158,28 @@ def motionInactive() {
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
-def processSound(threadId=null, threadState=null) {
+def processSound(String threadState='') {
+    switch (threadState) {
+    case 'ENDED':
+        soundInactive()
+        break
+    case 'STARTED':
+    case 'UPDATED':
+        soundActive()
+        break
+    case '':
+        soundActive()
+        if (minimumSoundTime == null) {
+            device.updateSetting('minimumSoundTime', 15)
+        }
+        runIn(minimumSoundTime, soundInactive, [overwrite: true])
+        break
+    }
+}
+
+def soundActive() {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
-    if (minimumSoundTime == null) {
-        device.updateSetting('minimumSoundTime', 15)
-    }
-    runIn(minimumSoundTime, soundInactive, [overwrite: true])
 }
 
 def soundInactive() {
