@@ -228,12 +228,12 @@ def getFolderId() {
     }
 }
 
-def setState(String attr, value) {
+def setDeviceState(String attr, value) {
     logDebug("updating state -- ${attr}: ${value}")
     state[attr] = value
 }
 
-def getState(String attr) {
+def getDeviceState(String attr) {
     if (state[attr]) {
         return state[attr]
     } else {

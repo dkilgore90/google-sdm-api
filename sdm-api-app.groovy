@@ -345,8 +345,12 @@ def appButtonHandler(btn) {
     }
 }
 
-private void discover() {
-    log.info("Discovery started")
+private void discover(refresh=false) {
+    if (refresh) {
+        log.info("Refreshing all device states")
+    } else {
+        log.info("Discovery started")
+    }
     def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/devices'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
@@ -410,13 +414,14 @@ def makeRealDevice(device) {
         log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
     } catch (IllegalArgumentException ignored) {
         //Intentionally ignored.  Expected if device id already exists in HE.
+        getChildDevice(device.id)
     }
 }
 
 def processTraits(device, details) {
     logDebug("Processing data for ${device}: ${details}")
     def room = details.parentRelations?.getAt(0)?.displayName
-    room ? device.setState('room', room) : null
+    room ? device.setDeviceState('room', room) : null
     if (device.hasCapability('Thermostat')) {
         processThermostatTraits(device, details)
     } else {
@@ -499,17 +504,17 @@ def convertAndRoundTemp(value) {
 
 def processCameraTraits(device, details) {
     if (details?.traits?.get('sdm.devices.traits.CameraEventImage') != null) {
-        device.setState('captureType', 'image')
+        device.setDeviceState('captureType', 'image')
     } else if (details?.traits?.get('sdm.devices.traits.CameraClipPreview') != null) {
-        device.setState('captureType', 'clip')
+        device.setDeviceState('captureType', 'clip')
     } else {
-        device.setState('captureType', 'none')
+        device.setDeviceState('captureType', 'none')
     }
     def imgRes = details?.traits?.get('sdm.devices.traits.CameraImage')?.maxImageResolution
-    imgRes?.width ? device.setState('imgWidth', imgRes.width) : null
-    imgRes?.height ? device.setState('imgHeight', imgRes.height) : null
+    imgRes?.width ? device.setDeviceState('imgWidth', imgRes.width) : null
+    imgRes?.height ? device.setDeviceState('imgHeight', imgRes.height) : null
     def videoFmt = details?.traits?.get('sdm.devices.traits.CameraLiveStream')?.supportedProtocols?.getAt(0)
-    videoFmt ? device.setState('videoFormat', videoFmt) : null
+    videoFmt ? device.setDeviceState('videoFormat', videoFmt) : null
 }
 
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadState='') {
@@ -531,12 +536,13 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String
         }
         def abbrKey = key.tokenize('.')[-1]
         if (device.shouldGetImage(abbrKey)) {
-            String captureType = device.getState('captureType')
+            String captureType = device.getDeviceState('captureType')
             if (captureType == 'image') {
                 deviceSendCommand(device, 'sdm.devices.commands.CameraEventImage.GenerateImage', [eventId: value.eventId])
             } else if (captureType == 'clip' && events.containsKey('sdm.devices.events.CameraClipPreview.ClipPreview')) {
                 // TODO: determine how to download/upload the clip to Google Drive for archive
-                sendEvent(device, [name: 'image', value: '<video autoplay loop><source src="' + "${events.get('sdm.devices.events.CameraClipPreview.ClipPreview').previewUrl}" + '"></video>', isStateChange: true]))
+                String clipUrl = events.get('sdm.devices.events.CameraClipPreview.ClipPreview').previewUrl
+                sendEvent(device, [name: 'image', value: '<video autoplay loop><source src="' + clipUrl + '"></video>', isStateChange: true])
             }
         }
     }
@@ -671,7 +677,7 @@ def postEvents() {
             }
             if ( timeCompare >= 0) {
                 def utcTimestamp = toDateTime(dataJson.timestamp)
-                device.setState('lastEventTime', utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone))
+                device.setDeviceState('lastEventTime', utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone))
                 processThermostatTraits(device, dataJson.resourceUpdate)
             } else {
                 log.warn("Received event out of order -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent} -- refreshing device ${device}")
@@ -712,12 +718,7 @@ def logToken() {
 def refreshAll() {
     log.info('Dropping stale events with timestamp < now, and refreshing devices')
     state.lastRecovery = now()
-    def children = getChildDevices()
-    children.each {
-        if (it != null) {
-            getDeviceData(it)
-        }
-    }
+    discover(refresh=true)
 }
 
 def getDeviceData(com.hubitat.app.DeviceWrapper device) {
@@ -752,7 +753,8 @@ def handleDeviceGet(resp, data) {
             log.error("Device-get response code: ${respCode}, body: ${respError}")
         }
     } else {
-        processTraits(data.device, resp.getJson())
+        fullDevice = getChildDevice(data.device.getDeviceNetworkId())
+        processTraits(fullDevice, resp.getJson())
     }
 }
 
@@ -872,7 +874,7 @@ def getWidthFromSize(device) {
         break
     case 'max':
     default:
-        return device.getState('imgWidth') ?: 1920
+        return device.getDeviceState('imgWidth') ?: 1920
         break
     }
 }
@@ -968,7 +970,7 @@ def handleCreateFile(resp, data) {
         } else if (respCode == 404) {
             log.warn("Known folder id not found for device: ${data.device} -- resetting. A new folder will be created automatically.")
             def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
-            fullDevice.setState('folderId', '')
+            fullDevice.setDeviceState('folderId', '')
             fullDevice.getFolderId()
         //} else if (respCode == 429 && data.backoffCount < 5) {
             //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
@@ -1090,7 +1092,7 @@ def handleCreateFolder(resp, data) {
     } else {
         def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
         def respJson = resp.getJson()
-        fullDevice.setState('folderId', respJson.id)
+        fullDevice.setDeviceState('folderId', respJson.id)
         setFolderPermissions(respJson.id, data.device)
     }
 }

@@ -40,6 +40,13 @@ metadata {
     
     preferences {
         input 'defaultFanTime', 'number', title: 'Default Fan Time (s)', 'description': 'default length of time (in seconds) that the fan will run for `fanOn`, if an explicit time is not specified', required: true, defaultValue: 900, range: "1..43200"
+        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
+    }
+}
+
+private logDebug(msg) {
+    if (settings?.debugOutput) {
+        log.debug "${device.label}: $msg"
     }
 }
 
@@ -181,7 +188,15 @@ def getLastEventTime() {
     return state.lastEventTime
 }
 
-def setState(String attr, value) {
+def setDeviceState(String attr, value) {
     logDebug("updating state -- ${attr}: ${value}")
     state[attr] = value
+}
+
+def getDeviceState(String attr) {
+    if (state[attr]) {
+        return state[attr]
+    } else {
+        refresh()
+    }
 }
