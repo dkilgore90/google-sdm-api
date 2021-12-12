@@ -265,10 +265,6 @@ def rescheduleLogin() {
         if (state.eventSubscription != 'v2') {
             updateEventSubscription()
         }
-        if (!state.attributeMigration) {
-            discover()
-            state.attributeMigration = true
-        }
     }
 }
 
