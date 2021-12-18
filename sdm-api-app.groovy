@@ -517,7 +517,7 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             device.processChime()
-            device.processPerson() //assume person must be present in order to push doorbell
+            device.processPerson(threadState) //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
             device.processPerson(threadState)
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
@@ -538,7 +538,9 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String
             } else if (captureType == 'clip' && events.containsKey('sdm.devices.events.CameraClipPreview.ClipPreview')) {
                 // TODO: determine how to download/upload the clip to Google Drive for archive
                 String clipUrl = events.get('sdm.devices.events.CameraClipPreview.ClipPreview').previewUrl
-                sendEvent(device, [name: 'image', value: '<video autoplay loop><source src="' + clipUrl + '"></video>', isStateChange: true])
+                logDebug("Received ClipPreview url ${clipUrl}, downloading video clip")
+                asynchttpGet(handleClipGet, [uri: clipUrl], [device: device])
+                //sendEvent(device, [name: 'image', value: '<video autoplay loop><source src="' + clipUrl + '"></video>', isStateChange: true])
             }
         }
     }
@@ -887,7 +889,7 @@ def handleImageGet(resp, data) {
         if (googleDrive) {
             def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
             if (fullDevice.getFolderId()) {
-                createFile(img, data.device)
+                createFile(img, 'jpg', data.device)
             } else {
                 log.warn("Folder is being created for device: ${data.device}, this image will be dropped.")
             }
@@ -897,6 +899,27 @@ def handleImageGet(resp, data) {
         }
     } else {
         log.error("image download failed for device ${data.device}, response code: ${respCode}")
+    }
+}
+
+def handleClipGet(resp, data) {
+    def respCode = resp.getStatus()
+    if (respCode == 200) {
+        def clip = resp.getData()
+        logDebug(clip)
+        if (googleDrive) {
+            def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
+            if (fullDevice.getFolderId()) {
+                createFile(clip, 'mp4', data.device)
+            } else {
+                log.warn("Folder is being created for device: ${data.device}, this clip will be dropped.")
+            }
+        } else {
+            sendEvent(data.device, [name: 'rawImg', value: clip])
+            sendEvent(data.device, [name: 'image', value: "<video autoplay loop><source src=/apps/api/${app.id}/img/${data.device.getDeviceNetworkId()}?access_token=${state.accessToken}&ts=${now()}></video>", isStateChange: true])
+        }
+    } else {
+        log.error("clip download failed for device ${data.device}, response code: ${respCode}")
     }
 }
 
@@ -931,15 +954,19 @@ def handleCheckGoogle(resp, data) {
     }
 }
 
-def createFile(img, device) {
+def createFile(img, type, device) {
     def uri = 'https://www.googleapis.com/drive/v3/files'
     def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
     def contentType = 'application/json'
     def ts = now()
     def fullDevice = getChildDevice(device.getDeviceNetworkId())
+    def mime = 'image/jpeg'
+    if (type == 'mp4') {
+        mime = 'video/mp4'
+    }
     def body = [
-        mimeType: 'image/jpeg',
-        name: "${device}-${ts}.jpg",
+        mimeType: mime,
+        name: "${device}-${ts}.${type}",
         parents: [
             fullDevice.getFolderId()
         ]
