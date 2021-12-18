@@ -2,6 +2,32 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2021-12-18
+
+### sdm-api-app:1.0.0
+* For certain parameters, set device state values instead of sending events
+* Store device "captureType" based on capabilities
+* Handle event thread states
+* Handle new ClipPreview for battery doorbell
+
+### sdm-api-camera:1.0.0
+* Migrate certain device attributes to state map
+* Remove "lastEventType" -- redundant with actual device events
+* Handle event thread states
+
+### sdm-api-display:1.0.0
+* Migrate certain device attributes to state map
+* Remove "lastEventType" -- redundant with actual device events
+* Handle event thread states
+
+### sdm-api-doorbell:1.0.0
+* Migrate certain device attributes to state map
+* Remove "lastEventType" -- redundant with actual device events
+* Handle event thread states
+
+### sdm-api-thermostat:1.0.0
+* Migrate certain device attributes to state map
+
 ## 2021-09-24
 
 ### sdm-api-app:0.6.3
