@@ -57,7 +57,7 @@ Click the specified link to return to the App configuration page.  It will now d
 Press the **Discover** button on the Google SDM API app page to discover your authorized Nest devices.
 
 ## Upgrading to v1.0.0 (or higher) from v0.x.y
-Many previous device attributes are migrated into the device state variables in order to reduce event noise.  It is recommended that you run a fresh "Discover" after applying the new code to Hubitat for the App/Drivers.  If this is not done, you may see some transient errors, when the code attempts to retrieve data from state -- if the desired data is not found, the device _will_ automatically refresh in order to populate the state. 
+Many previous device attributes are migrated into the device state variables in order to reduce event noise.  It is recommended that you run a fresh "Discover" after applying the new code to Hubitat for the App/Drivers.  This will take care of setting the relevant state map for the device so that it can be referenced later.  If this is not done, you may see some transient errors, when the code attempts to retrieve data from state -- when the desired data is not found, the device _will_ automatically refresh in order to populate the state map. 
 
 ## Features
 
