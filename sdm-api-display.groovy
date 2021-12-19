@@ -1,16 +1,20 @@
 /**
  *
- *  Copyright 2020 David Kilgore. All Rights Reserved
+ *  Copyright 2020-2021 David Kilgore. All Rights Reserved
  *
- *  This software is free for Private Use. You may use and modify the software without distributing it.
- *  If you make a fork, and add new code, then you should create a pull request to add value, there is no
- *  guarantee that your pull request will be merged.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- *  You may not grant a sublicense to modify and distribute this software to third parties without permission
- *  from the copyright holder
- *  Software is provided without warranty and your use of it is at your own risk.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  version: 0.4.0
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  version: 1.0.0
  */
 
 metadata {
@@ -23,12 +27,7 @@ metadata {
         capability 'SoundSensor'
         capability 'Initialize'
 
-        attribute 'room', 'string'
-        attribute 'imgWidth', 'number'
-        attribute 'imgHeight', 'number'
         attribute 'rawImg', 'string'
-        attribute 'lastEventTime', 'string'
-        attribute 'lastEventType', 'string'
         attribute 'streamUrl', 'string'
     }
     
@@ -70,7 +69,7 @@ def uninstalled() {
 }
 
 def initialize() {
-    if (enableVideoStream) {
+    if (enableVideoStream && (state.videoFmt == 'RTSP')) {
         Random rnd = new Random()
         parent.deviceGenerateStream(device)
         schedule("${rnd.nextInt(60)} ${rnd.nextInt(4)}/4 * ? * * *", extendStream)
@@ -96,13 +95,28 @@ def refresh() {
     parent.getDeviceData(device)
 }
 
-def processPerson() {
+def processPerson(String threadState='') {
+    switch (threadState) {
+    case 'ENDED':
+        presenceInactive()
+        break
+    case 'STARTED':
+    case 'UPDATED':
+        presenceActive()
+        break
+    case '':
+        presenceActive()
+        if (minimumPresenceTime == null) {
+            device.updateSetting('minimumPresenceTime', 15)
+        }
+        runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
+        break
+    }
+}
+
+def presenceActive() {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
-    if (minimumPresenceTime == null) {
-        device.updateSetting('minimumPresenceTime', 15)
-    }
-    runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
 }
 
 def presenceInactive() {
@@ -110,13 +124,28 @@ def presenceInactive() {
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
-def processMotion() {
+def processMotion(String threadState='') {
+    switch (threadState) {
+    case 'ENDED':
+        motionInactive()
+        break
+    case 'STARTED':
+    case 'UPDATED':
+        motionActive()
+        break
+    case '':
+        motionActive()
+        if (minimumMotionTime == null) {
+            device.updateSetting('minimumMotionTime', 15)
+        }
+        runIn(minimumMotionTime, motionInactive, [overwrite: true])
+        break
+    }
+}
+
+def motionActive() {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
-    if (minimumMotionTime == null) {
-        device.updateSetting('minimumMotionTime', 15)
-    }
-    runIn(minimumMotionTime, motionInactive, [overwrite: true])
 }
 
 def motionInactive() {
@@ -124,13 +153,28 @@ def motionInactive() {
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
-def processSound() {
+def processSound(String threadState='') {
+    switch (threadState) {
+    case 'ENDED':
+        soundInactive()
+        break
+    case 'STARTED':
+    case 'UPDATED':
+        soundActive()
+        break
+    case '':
+        soundActive()
+        if (minimumSoundTime == null) {
+            device.updateSetting('minimumSoundTime', 15)
+        }
+        runIn(minimumSoundTime, soundInactive, [overwrite: true])
+        break
+    }
+}
+
+def soundActive() {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
-    if (minimumSoundTime == null) {
-        device.updateSetting('minimumSoundTime', 15)
-    }
-    runIn(minimumSoundTime, soundInactive, [overwrite: true])
 }
 
 def soundInactive() {
@@ -148,6 +192,9 @@ def shouldGetImage(String event) {
         break
     case 'Sound':
         return soundImageCapture != null ? soundImageCapture : true
+        break
+    case 'ClipPreview':
+        return false
         break
     default:
         return true
@@ -185,6 +232,15 @@ def getFolderId() {
     }
 }
 
-def setFolderId(String id) {
-    state.folderId = id
+def setDeviceState(String attr, value) {
+    logDebug("updating state -- ${attr}: ${value}")
+    state[attr] = value
+}
+
+def getDeviceState(String attr) {
+    if (state[attr]) {
+        return state[attr]
+    } else {
+        refresh()
+    }
 }

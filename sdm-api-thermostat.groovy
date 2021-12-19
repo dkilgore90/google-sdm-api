@@ -1,16 +1,20 @@
 /**
  *
- *  Copyright 2020 David Kilgore. All Rights Reserved
+ *  Copyright 2020-2021 David Kilgore. All Rights Reserved
  *
- *  This software is free for Private Use. You may use and modify the software without distributing it.
- *  If you make a fork, and add new code, then you should create a pull request to add value, there is no
- *  guarantee that your pull request will be merged.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- *  You may not grant a sublicense to modify and distribute this software to third parties without permission
- *  from the copyright holder
- *  Software is provided without warranty and your use of it is at your own risk.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  version: 0.1.5
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  version: 1.0.0
  */
 
 metadata {
@@ -25,14 +29,12 @@ metadata {
         capability 'RelativeHumidityMeasurement'
         capability 'Refresh'
 
-        attribute 'room', 'string'
         attribute 'connectivity', 'string'
         attribute 'fanTimeout', 'string'
         attribute 'ecoMode', 'string'
         attribute 'ecoCoolPoint', 'number'
         attribute 'ecoHeatPoint', 'number'
         attribute 'tempScale', 'string'
-        attribute 'lastEventTime', 'string'
 
         command 'fanOn', [[name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setThermostatFanMode', [[name: 'fanmode', type: 'ENUM', constraints: ['auto', 'on']], [name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
@@ -42,6 +44,13 @@ metadata {
     
     preferences {
         input 'defaultFanTime', 'number', title: 'Default Fan Time (s)', 'description': 'default length of time (in seconds) that the fan will run for `fanOn`, if an explicit time is not specified', required: true, defaultValue: 900, range: "1..43200"
+        input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
+    }
+}
+
+private logDebug(msg) {
+    if (settings?.debugOutput) {
+        log.debug "${device.label}: $msg"
     }
 }
 
@@ -177,4 +186,21 @@ def fanCirculate() {
 
 def emergencyHeat() {
     log.info("emergencyHeat is not currently supported")
+}
+
+def getLastEventTime() {
+    return state.lastEventTime
+}
+
+def setDeviceState(String attr, value) {
+    logDebug("updating state -- ${attr}: ${value}")
+    state[attr] = value
+}
+
+def getDeviceState(String attr) {
+    if (state[attr]) {
+        return state[attr]
+    } else {
+        refresh()
+    }
 }
