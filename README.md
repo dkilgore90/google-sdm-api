@@ -56,13 +56,18 @@ Click the specified link to return to the App configuration page.  It will now d
 
 Press the **Discover** button on the Google SDM API app page to discover your authorized Nest devices.
 
+## Upgrading to v1.0.0 (or higher) from v0.x.y
+Many previous device attributes are migrated into the device state variables in order to reduce event noise.  It is recommended that you run a fresh "Discover" after applying the new code to Hubitat for the App/Drivers.  This will take care of setting the relevant state map for the device so that it can be referenced later.  If this is not done, you may see some transient errors, when the code attempts to retrieve data from state -- when the desired data is not found, the device _will_ automatically refresh in order to populate the state map. 
+
 ## Features
 
 ### Camera images
 The latest still image is downloaded when a device event is received (Doorbell, Camera, Display).  This can be displayed in a HE dashboard
 using the `attribute` tile.  Simply select the device, and the attribute to use is `image`.
 
-Note: this currently only works for *Local* dashboards -- support for cloud dashboards coming in a future update.
+Most of Google's 2021 models -- battery cam (indoor/outdoor), indoor hardwired cam, and floodlight cam -- do not support any image capture via the API, even on device events.
+
+Google's 2021 battery doorbell supports a 10-frame mp4 clip preview -- this is handled using the same attributes as prior still image captures
 
 #### Google Drive
 New feature in App version 0.6.0, and corresponding Camera/Display/Doorbell driver versions 0.4.0, which allows the user to use
