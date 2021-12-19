@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## 2021-12-18
+## 2021-12-19
 
 ### sdm-api-app:1.0.0
 * For certain parameters, set device state values instead of sending events
