@@ -296,7 +296,7 @@ def login(String authCode) {
     } catch (groovyx.net.http.HttpResponseException e) {
         String err = "Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}"
         log.error(err)
-        return "Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}"
+        return err
     }
     return ""
 }
