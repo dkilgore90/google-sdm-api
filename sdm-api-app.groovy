@@ -17,7 +17,7 @@ import groovy.json.JsonSlurper
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.0
+ *  version: 1.0.1
  */
 
 definition(
@@ -203,12 +203,19 @@ def handleAuthRedirect() {
     log.info('successful redirect from google')
     unschedule(refreshLogin)
     def authCode = params.code
-    login(authCode)
+    String err = login(authCode)
     runEvery1Hour refreshLogin
     createEventSubscription()
     def builder = new StringBuilder()
-    builder << "<!DOCTYPE html><html><head><title>Hubitat Elevation - Google SDM API</title></head>"
-    builder << "<body><p>Congratulations! Google SDM API has authenticated successfully</p>"
+    builder << "<!DOCTYPE html><html><head><title>Hubitat Elevation - Google SDM API</title></head><body>"
+    if (err == "") {
+        builder << "<h1>Congratulations!</h1>"
+        builder << "<p>Google SDM API has authenticated successfully</p>"
+    } else {
+        builder << "<h1 style=\"color:red;\">Uh oh...</h1>"
+        builder << "<p>Google SDM API received redirect from Google, but authorization is not yet complete.<br>"
+        builder << "<b>${err}</b></p>"
+    }
     builder << "<p><a href=https://${location.hub.localIP}/installedapp/configure/${app.id}/mainPage>Click here</a> to return to the App main page.</p></body></html>"
     
     def html = builder.toString()
@@ -287,8 +294,11 @@ def login(String authCode) {
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
     } catch (groovyx.net.http.HttpResponseException e) {
-        log.error("Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}")
+        String err = "Login failed -- ${e.getLocalizedMessage()}: ${e.response.data}"
+        log.error(err)
+        return err
     }
+    return ""
 }
 
 def refreshLogin() {
