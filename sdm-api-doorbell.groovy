@@ -155,98 +155,98 @@ def processChime() {
     device.sendEvent(name: 'pushed', value: 1, isStateChange: true)
 }
 
-def processPerson(String threadState='', String threadId='') {
+def processPerson(String threadState='', String threadId='', zones=[]) {
     switch (threadState) {
     case 'ENDED':
-        presenceInactive()
+        presenceInactive(zones)
         removeActiveThread('person', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
-        presenceActive()
+        presenceActive(zones)
         appendActiveThread('person', threadId)
         break
     case '':
     default:
-        presenceActive()
+        presenceActive(zones)
         if (minimumPresenceTime == null) {
             device.updateSetting('minimumPresenceTime', 15)
         }
-        runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
+        runIn(minimumPresenceTime, presenceInactive, [overwrite: true, data: zones])
         break
     }
 }
 
-def presenceActive() {
+def presenceActive(zones=[]) {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
 }
 
-def presenceInactive() {
+def presenceInactive(zones=[]) {
     logDebug('Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
-def processMotion(String threadState='', String threadId='') {
+def processMotion(String threadState='', String threadId='', zones=[]) {
     switch (threadState) {
     case 'ENDED':
-        motionInactive()
+        motionInactive(zones)
         removeActiveThread('motion', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
-        motionActive()
+        motionActive(zones)
         appendActiveThread('motion', threadId)
         break
     case '':
     default:
-        motionActive()
+        motionActive(zones)
         if (minimumMotionTime == null) {
             device.updateSetting('minimumMotionTime', 15)
         }
-        runIn(minimumMotionTime, motionInactive, [overwrite: true])
+        runIn(minimumMotionTime, motionInactive, [overwrite: true, data: zones])
         break
     }
 }
 
-def motionActive() {
+def motionActive(zones=[]) {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
 }
 
-def motionInactive() {
+def motionInactive(zones=[]) {
     logDebug('Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
-def processSound(String threadState='', String threadId='') {
+def processSound(String threadState='', String threadId='', zones=[]) {
     switch (threadState) {
     case 'ENDED':
-        soundInactive()
+        soundInactive(zones)
         removeActiveThread('sound', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
-        soundActive()
+        soundActive(zones)
         appendActiveThread('sound', threadId)
         break
     case '':
     default:
-        soundActive()
+        soundActive(zones)
         if (minimumSoundTime == null) {
             device.updateSetting('minimumSoundTime', 15)
         }
-        runIn(minimumSoundTime, soundInactive, [overwrite: true])
+        runIn(minimumSoundTime, soundInactive, [overwrite: true, data: zones])
         break
     }
 }
 
-def soundActive() {
+def soundActive(zones=[]) {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
 }
 
-def soundInactive() {
+def soundInactive(zones=[]) {
     logDebug('Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
 }
