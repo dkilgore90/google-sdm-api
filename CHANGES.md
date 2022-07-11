@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2022-07-11
+
+### sdm-api-camera:1.0.1
+* Bugfix: #82 - correct videoFmt to videoFormat when attempting to generate stream
+
+### sdm-api-display:1.0.1
+* Bugfix: #82 - correct videoFmt to videoFormat when attempting to generate stream
+
+### sdm-api-doorbell:1.0.1
+* Bugfix: #82 - correct videoFmt to videoFormat when attempting to generate stream
+
 ## 2022-02-02
 
 ### sdm-api-app:1.0.1
