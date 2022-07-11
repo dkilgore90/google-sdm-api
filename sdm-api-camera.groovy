@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.0
+ *  version: 1.0.1
  */
 
 metadata {
@@ -69,7 +69,7 @@ def uninstalled() {
 }
 
 def initialize() {
-    if (enableVideoStream && (state.videoFmt == 'RTSP')) {
+    if (enableVideoStream && (state.videoFormat == 'RTSP')) {
         Random rnd = new Random()
         parent.deviceGenerateStream(device)
         schedule("${rnd.nextInt(60)} ${rnd.nextInt(4)}/4 * ? * * *", extendStream)
