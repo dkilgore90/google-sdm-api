@@ -69,7 +69,7 @@ def uninstalled() {
 }
 
 def initialize() {
-    if (enableVideoStream && (state.videoFmt == 'RTSP')) {
+    if (enableVideoStream && (state.videoFormat == 'RTSP')) {
         Random rnd = new Random()
         parent.deviceGenerateStream(device)
         schedule("${rnd.nextInt(60)} ${rnd.nextInt(4)}/4 * ? * * *", extendStream)
