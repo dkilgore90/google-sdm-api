@@ -1,3 +1,5 @@
+import groovy.transform.Field
+
 /**
  *
  *  Copyright 2020-2021 David Kilgore. All Rights Reserved
@@ -14,7 +16,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.1
+ *  version: 1.0.2.alpha
  */
 
 metadata {
@@ -45,6 +47,36 @@ metadata {
         input 'enableVideoStream', 'bool', title: 'Enable Video Stream?', required: true, defaultValue: false
 
         input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
+    }
+}
+
+@Field static Map<String,Map<String,List<String>>> activeThreads = [:]
+
+void appendActiveThread(String eventType, String threadId) {
+    if (threadId) {
+        activeThreads["${device.id}" as String][threadId].add(eventType)
+    }
+}
+
+void removeActiveThread(String eventType, String threadId) {
+    if (threadId) {
+        List<String> events = activeThreads["${device.id}" as String].remove(threadId)
+        for (evt in events) {
+            switch (evt) {
+            // skip eventType as already processed
+            case eventType:
+                break
+            case 'person':
+                presenceInactive()
+                break
+            case 'motion':
+                motionInactive()
+                break
+            case 'sound':
+                soundInactive()
+                break
+            }
+        }
     }
 }
 
@@ -86,9 +118,12 @@ def initialize() {
         device.sendEvent(name: 'streamUrl', value: ' ')
     }
     device.sendEvent(name: 'numberOfButtons', value: 1)
-    device.sendEvent(name: 'presence', value: device.currentValue('presence') ?: 'not present')
-    device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
-    device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
+    // reset person, motion, sound states, clear activeThreads
+    presenceInactive()
+    motionInactive()
+    soundInactive()
+    activeThreads["${device.id}" as String] = [:]
+
     device.sendEvent(name: 'rawImg', value: device.currentValue('rawImg') ?: ' ')
     device.sendEvent(name: 'image', value: device.currentValue('image') ?: '<img src="" />')
     device.sendEvent(name: 'streamUrl', value: device.currentValue('streamUrl') ?: ' ')
@@ -104,14 +139,16 @@ def processChime() {
     device.sendEvent(name: 'pushed', value: 1, isStateChange: true)
 }
 
-def processPerson(String threadState='') {
+def processPerson(String threadState='', String threadId='') {
     switch (threadState) {
     case 'ENDED':
         presenceInactive()
+        removeActiveThread('person', 'threadId')
         break
     case 'STARTED':
     case 'UPDATED':
         presenceActive()
+        appendActiveThread('person', threadId)
         break
     case '':
         presenceActive()
@@ -133,14 +170,16 @@ def presenceInactive() {
     device.sendEvent(name: 'presence', value: 'not present')
 }
 
-def processMotion(String threadState='') {
+def processMotion(String threadState='', String threadId='') {
     switch (threadState) {
     case 'ENDED':
         motionInactive()
+        removeActiveThread('motion', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
         motionActive()
+        appendActiveThread('motion', threadId)
         break
     case '':
         motionActive()
@@ -162,14 +201,16 @@ def motionInactive() {
     device.sendEvent(name: 'motion', value: 'inactive')
 }
 
-def processSound(String threadState='') {
+def processSound(String threadState='', String threadId='') {
     switch (threadState) {
     case 'ENDED':
         soundInactive()
+        removeActiveThread('sound', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
         soundActive()
+        appendActiveThread('sound', threadId)
         break
     case '':
         soundActive()
