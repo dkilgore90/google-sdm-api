@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.2.alpha
+ *  version: 1.0.2.alpha2
  */
 
 metadata {
@@ -54,7 +54,11 @@ metadata {
 
 void appendActiveThread(String eventType, String threadId) {
     if (threadId) {
-        activeThreads["${device.id}" as String][threadId].add(eventType)
+        List<String> threadEvents = activeThreads["${device.id}" as String][threadId] ?: []
+        if (!threadEvents.contains(eventType)) {
+            threadEvents.add(eventType)
+        }
+        activeThreads["${device.id}" as String][threadId] = threadEvents
     }
 }
 
