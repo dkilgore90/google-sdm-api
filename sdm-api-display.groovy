@@ -2,7 +2,7 @@ import groovy.transform.Field
 
 /**
  *
- *  Copyright 2020-2021 David Kilgore. All Rights Reserved
+ *  Copyright 2020-2022 David Kilgore. All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.2.alpha2
+ *  version: 1.0.2
  */
 
 metadata {
@@ -52,17 +52,23 @@ metadata {
 
 void appendActiveThread(String eventType, String threadId) {
     if (threadId) {
+        logDebug("${eventType} event is active in thread: ${threadId}")
+        if (activeThreads["${device.id}" as String] == null) {
+            activeThreads["${device.id}" as String] = [:]
+        }
         List<String> threadEvents = activeThreads["${device.id}" as String][threadId] ?: []
         if (!threadEvents.contains(eventType)) {
             threadEvents.add(eventType)
         }
         activeThreads["${device.id}" as String][threadId] = threadEvents
+        logDebug('after append - current active threads:' + activeThreads["${device.id}" as String].keySet())
     }
 }
 
 void removeActiveThread(String eventType, String threadId) {
     if (threadId) {
         List<String> events = activeThreads["${device.id}" as String].remove(threadId)
+        logDebug("${threadId} ended -- marking events inactive: ${events}")
         for (evt in events) {
             switch (evt) {
             // skip eventType as already processed
@@ -79,6 +85,7 @@ void removeActiveThread(String eventType, String threadId) {
                 break
             }
         }
+        logDebug('after remove - current active threads:' + activeThreads["${device.id}" as String].keySet())
     }
 }
 
@@ -139,7 +146,7 @@ def processPerson(String threadState='', String threadId='') {
     switch (threadState) {
     case 'ENDED':
         presenceInactive()
-        removeActiveThread('person', 'threadId')
+        removeActiveThread('person', threadId)
         break
     case 'STARTED':
     case 'UPDATED':

@@ -3,7 +3,7 @@ import groovy.json.JsonSlurper
 
 /**
  *
- *  Copyright 2020-2021 David Kilgore. All Rights Reserved
+ *  Copyright 2020-2022 David Kilgore. All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ import groovy.json.JsonSlurper
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.2.alpha
+ *  version: 1.0.2
  */
 
 definition(
