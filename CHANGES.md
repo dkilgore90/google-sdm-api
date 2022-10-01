@@ -2,6 +2,20 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2022-09-30
+
+### sdm-api-app:1.0.2
+* Bugfix: #85 - handle threadId for more reliable event clearing
+
+### sdm-api-camera:1.0.2
+* Bugfix: #85 - handle threadId for more reliable event clearing
+
+### sdm-api-display:1.0.2
+* Bugfix: #85 - handle threadId for more reliable event clearing
+
+### sdm-api-doorbell:1.0.2
+* Bugfix: #85 - handle threadId for more reliable event clearing
+
 ## 2022-07-11
 
 ### sdm-api-camera:1.0.1

@@ -3,7 +3,7 @@ import groovy.json.JsonSlurper
 
 /**
  *
- *  Copyright 2020-2021 David Kilgore. All Rights Reserved
+ *  Copyright 2020-2022 David Kilgore. All Rights Reserved
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ import groovy.json.JsonSlurper
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.1
+ *  version: 1.0.2
  */
 
 definition(
@@ -527,17 +527,17 @@ def processCameraTraits(device, details) {
     videoFmt ? device.setDeviceState('videoFormat', videoFmt) : null
 }
 
-def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadState='') {
+def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadState='', String threadId='') {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
             device.processChime()
-            device.processPerson(threadState) //assume person must be present in order to push doorbell
+            device.processPerson(threadState, threadId) //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
-            device.processPerson(threadState)
+            device.processPerson(threadState, threadId)
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
-            device.processMotion(threadState)
+            device.processMotion(threadState, threadId)
         } else if (key == 'sdm.devices.events.CameraSound.Sound') {
-            device.processSound(threadState)
+            device.processSound(threadState, threadId)
         } else if (key == 'sdm.devices.events.CameraClipPreview.ClipPreview') {
             if (events.size() == 1) {
                 // If we hit this case, need to add sessionId lookup/handling so that we can correlate for `shouldGetImage()`
@@ -696,7 +696,7 @@ def postEvents() {
                 getDeviceData(device)
             }
         } else {
-            processCameraEvents(device, dataJson.resourceUpdate.events, dataJson.eventThreadState)
+            processCameraEvents(device, dataJson.resourceUpdate.events, dataJson.eventThreadState, dataJson.eventThreadId)
         }
     }
 }
