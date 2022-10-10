@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.2
+ *  version: 1.0.3
  */
 
 metadata {
@@ -162,6 +162,7 @@ def processPerson(String threadState='', String threadId='') {
         appendActiveThread('person', threadId)
         break
     case '':
+    default:
         presenceActive()
         if (minimumPresenceTime == null) {
             device.updateSetting('minimumPresenceTime', 15)
@@ -193,6 +194,7 @@ def processMotion(String threadState='', String threadId='') {
         appendActiveThread('motion', threadId)
         break
     case '':
+    default:
         motionActive()
         if (minimumMotionTime == null) {
             device.updateSetting('minimumMotionTime', 15)
@@ -224,6 +226,7 @@ def processSound(String threadState='', String threadId='') {
         appendActiveThread('sound', threadId)
         break
     case '':
+    default:
         soundActive()
         if (minimumSoundTime == null) {
             device.updateSetting('minimumSoundTime', 15)
