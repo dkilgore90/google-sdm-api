@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.3
+ *  version: 1.0.4
  */
 
 metadata {
@@ -143,6 +143,11 @@ def initialize() {
 def refresh() {
     initialize()
     parent.getDeviceData(device)
+}
+
+def push(button) {
+    logDebug("Digital button push (${button})")
+    device.sendEvent(name: 'pushed', value: button, isStateChange: true)
 }
 
 def processChime() {
