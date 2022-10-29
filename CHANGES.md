@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2022-10-29
+
+### sdm-api-doorbell:1.0.4
+* Add **push()** command definition in doorbell driver for local HE (there is no command sent to Google)
+
 ## 2022-10-09
 
 ### sdm-api-camera:1.0.3
