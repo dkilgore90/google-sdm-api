@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-03-17
+
+### sdm-api-app:1.0.3
+* Send auth token when requesting clip preview
+
 ## 2022-10-29
 
 ### sdm-api-doorbell:1.0.4

@@ -17,7 +17,7 @@ import groovy.json.JsonSlurper
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.2
+ *  version: 1.0.3
  */
 
 definition(
@@ -553,7 +553,9 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String
                 // TODO: determine how to download/upload the clip to Google Drive for archive
                 String clipUrl = events.get('sdm.devices.events.CameraClipPreview.ClipPreview').previewUrl
                 logDebug("Received ClipPreview url ${clipUrl}, downloading video clip")
-                asynchttpGet(handleClipGet, [uri: clipUrl], [device: device])
+                def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
+                def params = [uri: clipUrl, headers: headers]
+                asynchttpGet(handleClipGet, params, [device: device])
                 //sendEvent(device, [name: 'image', value: '<video autoplay loop><source src="' + clipUrl + '"></video>', isStateChange: true])
             }
         }
