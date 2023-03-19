@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-03-19
+
+### sdm-api-app:1.0.4
+* Define **supportedThermostatModes** and **supportedThermostatFanModes** as JSON_OBJECT instead of List<String>
+
 ## 2023-03-17
 
 ### sdm-api-app:1.0.3

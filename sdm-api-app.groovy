@@ -1,5 +1,5 @@
 import groovy.json.JsonSlurper
-//import groovy.json.JsonOutput
+import groovy.json.JsonOutput
 
 /**
  *
@@ -17,7 +17,7 @@ import groovy.json.JsonSlurper
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.3
+ *  version: 1.0.4
  */
 
 definition(
@@ -446,7 +446,7 @@ def processThermostatTraits(device, details) {
     connectivity ? sendEvent(device, [name: 'connectivity', value: connectivity]) : null
     def fanStatus = details.traits['sdm.devices.traits.Fan']?.timerMode
     fanStatus ? sendEvent(device, [name: 'thermostatFanMode', value: fanStatus == 'OFF' ? 'auto' : 'on']) : null
-    fanStatus ? sendEvent(device, [name: 'supportedThermostatFanModes', value: ['auto', 'on']]) : null
+    fanStatus ? sendEvent(device, [name: 'supportedThermostatFanModes', value: JsonOutput.toJson(['auto', 'on'])]) : null
     def fanTimeout = details.traits['sdm.devices.traits.Fan']?.timerTimeout
     fanTimeout ? sendEvent(device, [name: 'fanTimeout', value: fanStatus == 'OFF' ? '' : fanTimeout]) : null
     def nestMode = details.traits['sdm.devices.traits.ThermostatMode']?.mode
@@ -501,7 +501,7 @@ def translateNestAvailableModes(modes) {
             trModes.add(it.toLowerCase())
         }
     }
-    return trModes
+    return JsonOutput.toJson(trModes)
 }
 
 def convertAndRoundTemp(value) {
