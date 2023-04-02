@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-04-02
+
+### sdm-api-app:1.0.5
+* Only trigger doorbell "push" if eventThreadState is STARTED (or not specified for legacy doorbell)
+
+### sdm-api-thermostat:1.0.1
+* Set **supportedThermostatFanModes** to ["auto"] if not reported by device -- workaround for Basic Rules handling
+
 ## 2023-03-19
 
 ### sdm-api-app:1.0.4
