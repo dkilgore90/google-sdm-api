@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /**
  *
  *  Copyright 2020-2021 David Kilgore. All Rights Reserved
@@ -14,7 +16,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.0
+ *  version: 1.0.1
  */
 
 metadata {
@@ -67,10 +69,16 @@ def uninstalled() {
 }
 
 def initialize() {
-
+    // Workaround for Basic Rules when thermostat does not report any fan status/modes (UK boiler)
+    // https://community.hubitat.com/t/release-google-sdm-api-nest-integration/52226/1013?u=dkilgore90
+    device.sendEvent(
+        name: 'supportedThermostatFanModes',
+        value: device.currentValue('supportedThermostatFanModes') ?: JsonOutput.toJson(['auto'])
+    )
 }
 
 def refresh() {
+    initialize()
     parent.getDeviceData(device)
 }
 
