@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.4
+ *  version: 1.0.5
  */
 
 definition(
@@ -530,7 +530,9 @@ def processCameraTraits(device, details) {
 def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String threadState='', String threadId='') {
     events.each { key, value -> 
         if (key == 'sdm.devices.events.DoorbellChime.Chime') {
-            device.processChime()
+            if (threadState in ['STARTED', '', null]) {
+                device.processChime()
+            }
             device.processPerson(threadState, threadId) //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
             device.processPerson(threadState, threadId)
