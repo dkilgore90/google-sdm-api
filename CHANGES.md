@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-04-06
+* Remove expensive debug log of mp4 clip data -- possible cause of hub load
+* Publish proper `image` event for mp4 clips in Google Drive
+
 ## 2023-04-02
 
 ### sdm-api-app:1.0.5
