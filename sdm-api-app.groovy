@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.5
+ *  version: 1.0.6
  */
 
 definition(
@@ -924,7 +924,6 @@ def handleClipGet(resp, data) {
     def respCode = resp.getStatus()
     if (respCode == 200) {
         def clip = resp.getData()
-        logDebug(clip)
         if (googleDrive) {
             def fullDevice = getChildDevice(data.device.getDeviceNetworkId())
             if (fullDevice.getFolderId()) {
@@ -991,7 +990,7 @@ def createFile(img, type, device) {
     ]
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
     logDebug("Creating Google Drive file for device image: ${device}")
-    asynchttpPost(handleCreateFile, params, [device: device, params: params, img: img])
+    asynchttpPost(handleCreateFile, params, [device: device, params: params, img: img, type: type])
 }
 
 def handleCreateFile(resp, data) {
@@ -1022,11 +1021,11 @@ def handleCreateFile(resp, data) {
         }
     } else {
         def respJson = resp.getJson()
-        uploadDrive(respJson.id, data.img, data.device)
+        uploadDrive(respJson.id, data.img, data.device, data.type)
     }
 }
 
-def uploadDrive(id, img, device) {
+def uploadDrive(id, img, device, type) {
     def uri = "https://www.googleapis.com/upload/drive/v3/files/${id}"
     def headers = [ Authorization: "Bearer ${state.googleAccessToken}" ]
     def query = [ uploadType: 'media' ]
@@ -1034,7 +1033,7 @@ def uploadDrive(id, img, device) {
     def body = img.decodeBase64()
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
     logDebug("Uploading image data to Google Drive file for device: ${device}")
-    asynchttpPatch(handleUploadDrive, params, [device: device, params: params, photoId: id])
+    asynchttpPatch(handleUploadDrive, params, [device: device, params: params, photoId: id, type: type])
 }
 
 def handleUploadDrive(resp, data) {
@@ -1059,18 +1058,18 @@ def handleUploadDrive(resp, data) {
             log.error("Upload image data to file -- response code: ${respCode}, body: ${respError}")
         }
     } else {
-        getPhotoDataDrive(data.photoId, data.device)
+        getPhotoDataDrive(data.photoId, data.device, data.type)
     }
 }
 
-def getPhotoDataDrive(photoId, device) {
+def getPhotoDataDrive(photoId, device, type) {
     def uri = "https://www.googleapis.com/drive/v3/files/${photoId}"
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
     def query = [ fields: 'webContentLink']
     def params = [ uri: uri, headers: headers, contentType: contentType, query: query ]
     logDebug("Retrieving photo by id to get image url for device: ${device}")
-    asynchttpGet(handleGetPhotoDataDrive, params, [device: device, params: params])
+    asynchttpGet(handleGetPhotoDataDrive, params, [device: device, params: params, type: type])
 }
 
 def handleGetPhotoDataDrive(resp, data) {
@@ -1092,7 +1091,12 @@ def handleGetPhotoDataDrive(resp, data) {
         }
     } else {
         def respJson = resp.getJson()
-        sendEvent(data.device, [name: 'image', value: '<img src="' + "${respJson.webContentLink}" + '" />', isStateChange: true])
+        switch (data.type) {
+        case 'jpg':
+            sendEvent(data.device, [name: 'image', value: '<img src="' + "${respJson.webContentLink}" + '" />', isStateChange: true])
+        case 'mp4':
+            sendEvent(data.device, [name: 'image', value: "<video autoplay loop><source src=${respJson.webContentLink}></video>", isStateChange: true])
+        }
     }
 }
 
