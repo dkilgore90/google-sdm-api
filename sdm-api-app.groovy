@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.6
+ *  version: 1.0.7
  */
 
 definition(
@@ -1094,8 +1094,10 @@ def handleGetPhotoDataDrive(resp, data) {
         switch (data.type) {
         case 'jpg':
             sendEvent(data.device, [name: 'image', value: '<img src="' + "${respJson.webContentLink}" + '" />', isStateChange: true])
+            break
         case 'mp4':
             sendEvent(data.device, [name: 'image', value: "<video autoplay loop><source src=${respJson.webContentLink}></video>", isStateChange: true])
+            break
         }
     }
 }
