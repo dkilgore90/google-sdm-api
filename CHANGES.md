@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-04-11
+
+### sdm-api-app:1.0.7
+* Fix `switch` syntax for `image` events for Google Drive -- legacy cameras/jpg broken due to duplicate events
+
 ## 2023-04-06
 
 ### sdm-api-app:1.0.6
