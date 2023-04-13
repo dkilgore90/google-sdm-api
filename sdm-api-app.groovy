@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.7
+ *  version: 1.0.8
  */
 
 definition(
@@ -65,8 +65,14 @@ private logDebug(msg) {
 def mainPage() {
     dynamicPage(name: "mainPage", title: "Setup", install: true, uninstall: true) {
         section {
-            input 'projectId', 'text', title: 'Google Device Access - Project ID', required: true, submitOnChange: false
-            input 'credentials', 'text', title: 'Google credentials.json', required: true, submitOnChange: false
+            input 'projectId', 'text', title: 'Google Device Access - Project ID', required: true, submitOnChange: true
+            if (!validateProjectId()) {
+                paragraph("<p style=\"color:red;\">Project id is not a valid UUID</p>")
+            }
+            input 'credentials', 'text', title: 'Google credentials.json', required: true, submitOnChange: true
+            if (!getCredentials()) {
+                paragraph("<p style=\"color:red;\">credentials.json is not valid JSON, or missing required attributes</p>")
+            }
         }
         getAuthLink()
         getDiscoverButton()
@@ -112,7 +118,7 @@ def debugPage() {
 }
 
 def getAuthLink() {
-    if (projectId && credentials && state?.accessToken) {
+    if (validateProjectId() && getCredentials() && state?.accessToken) {
         section {
             href(
                 name       : 'authHref',
@@ -192,10 +198,36 @@ def listDiscoveredDevices() {
     }
 }
 
+def validateProjectId() {
+    def uuidPattern = ~/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+    if (uuidPattern.matcher(projectId ?: '').matches()) {
+        return true
+    } else {
+        log.warn('projectId input is not a valid UUID')
+        return false
+    }
+
+}
+
 def getCredentials() {
     //def uri = 'https://' + location.hub.localIP + '/local/credentials.json'
     //def creds = httpGet([uri: uri]) { response }
-    def creds = new JsonSlurper().parseText(credentials)
+    def creds
+    try {
+        creds = new JsonSlurper().parseText(settings?.credentials ?: 'default')
+    } catch (groovy.json.JsonException e) {
+        log.warn('credentials.json input is not valid JSON')
+        return false
+    }
+    try {
+        def test1 = creds.web
+        def test2 = test1.project_id
+        test2 = test1.client_id
+        test2 = test1.client_secret
+    } catch (groovy.lang.MissingPropertyException e) {
+        log.warn('credentials.json input is missing required attribute')
+        return false
+    }
     return creds.web
 }
 
