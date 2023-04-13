@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-04-12
+
+### sdm-api-app:1.0.8
+* Improve robustness for incorrect App inputs during setup, added details/examples to README
+
 ## 2023-04-11
 
 ### sdm-api-app:1.0.7
