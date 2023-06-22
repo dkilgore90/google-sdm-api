@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.8
+ *  version: 1.0.9.alpha11
  */
 
 definition(
@@ -865,11 +865,14 @@ def deviceSendCommand(com.hubitat.app.DeviceWrapper device, String command, Map 
     def contentType = 'application/json'
     def body = [ command: command, params: cmdParams ]
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
+    logDebug("Sending command to uri: ${uri}")
+    logDebug("Body: ${body}")
     asynchttpPost(handlePostCommand, params, [device: device, command: command, params: params])
 }
 
 def handlePostCommand(resp, data) {
     def respCode = resp.getStatus()
+    logDebug("Command ${data.command} response code: ${respCode}")
     if (resp.hasError()) {
         def respError = ''
         try {
@@ -905,6 +908,8 @@ def handlePostCommand(resp, data) {
             //def respJson = resp.getJson()
             def device = getChildDevice(data.device.getDeviceNetworkId())
             device.updateStreamData(resp.getJson())
+        } else {
+            logDebug("Command ${data.command} response body: ${resp.getJson()}")
         }
     }
 }
