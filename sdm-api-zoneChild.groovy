@@ -53,3 +53,33 @@ def initialize() {
     device.sendEvent(name: 'motion', value: device.currentValue('motion') ?: 'inactive')
     device.sendEvent(name: 'sound', value: device.currentValue('sound') ?: 'not detected')
 }
+
+def presenceActive() {
+    logDebug('Person -- present')
+    device.sendEvent(name: 'presence', value: 'present')
+}
+
+def presenceInactive() {
+    logDebug('Person -- not present')
+    device.sendEvent(name: 'presence', value: 'not present')
+}
+
+def motionActive() {
+    logDebug('Motion -- active')
+    device.sendEvent(name: 'motion', value: 'active')
+}
+
+def motionInactive() {
+    logDebug('Motion -- inactive')
+    device.sendEvent(name: 'motion', value: 'inactive')
+}
+
+def soundActive() {
+    logDebug('Sound -- detected')
+    device.sendEvent(name: 'sound', value: 'detected')
+}
+
+def soundInactive() {
+    logDebug('Sound -- not detected')
+    device.sendEvent(name: 'sound', value: 'not detected')
+}

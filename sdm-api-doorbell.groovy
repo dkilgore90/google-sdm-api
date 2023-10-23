@@ -130,9 +130,14 @@ def initialize() {
     }
     device.sendEvent(name: 'numberOfButtons', value: 1)
     // reset person, motion, sound states, clear activeThreads
-    presenceInactive()
-    motionInactive()
-    soundInactive()
+    def devs = getChildDevices()
+    def zones = []
+    devs.each{
+        zones.append(it.getId().tokenize('_')[-1])
+    }
+    presenceInactive(zones)
+    motionInactive(zones)
+    soundInactive(zones)
     activeThreads["${device.id}" as String] = [:]
 
     device.sendEvent(name: 'rawImg', value: device.currentValue('rawImg') ?: ' ')
@@ -180,11 +185,23 @@ def processPerson(String threadState='', String threadId='', zones=[]) {
 def presenceActive(zones=[]) {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
+    zones.each{
+        def dev = makeRealDevice(it)
+        if (dev != null) {
+            dev.presenceActive()
+        }
+    }
 }
 
 def presenceInactive(zones=[]) {
     logDebug('Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
+    zones.each{
+        def dev = makeRealDevice(it)
+        if (dev != null) {
+            dev.presenceInactive()
+        }
+    }
 }
 
 def processMotion(String threadState='', String threadId='', zones=[]) {
@@ -212,11 +229,23 @@ def processMotion(String threadState='', String threadId='', zones=[]) {
 def motionActive(zones=[]) {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
+    zones.each{
+        def dev = makeRealDevice(it)
+        if (dev != null) {
+            dev.motionActive()
+        }
+    }
 }
 
 def motionInactive(zones=[]) {
     logDebug('Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
+    zones.each{
+        def dev = makeRealDevice(it)
+        if (dev != null) {
+            dev.motionInactive()
+        }
+    }
 }
 
 def processSound(String threadState='', String threadId='', zones=[]) {
@@ -244,11 +273,23 @@ def processSound(String threadState='', String threadId='', zones=[]) {
 def soundActive(zones=[]) {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
+    zones.each{
+        def dev = makeRealDevice(it)
+        if (dev != null) {
+            dev.soundActive()
+        }
+    }
 }
 
 def soundInactive(zones=[]) {
     logDebug('Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
+    zones.each{
+        def dev = makeRealDevice(it)
+        if (dev != null) {
+            dev.soundInactive()
+        }
+    }
 }
 
 def shouldGetImage(String event) {
@@ -314,5 +355,26 @@ def getDeviceState(String attr) {
         return state[attr]
     } else {
         refresh()
+    }
+}
+
+def makeRealDevice(zone) {
+    def deviceId = "${getId()}_${zone}"
+    def deviceName = "${getLabel()}_${zone}"
+    try {
+        addChildDevice(
+            'dkilgore90',
+            "Google Nest Zone Child",
+            deviceId.toString(),
+            [
+                name: deviceName.toString(),
+                label: deviceName.toString()
+            ]
+        )
+    } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
+        log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
+    } catch (IllegalArgumentException ignored) {
+        //Intentionally ignored.  Expected if device id already exists in HE.
+        getChildDevice(deviceId.toString())
     }
 }
