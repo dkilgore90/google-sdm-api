@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.0.alpha1
+ *  version: 1.1.0.zones_alpha1
  */
 
 metadata {
@@ -356,7 +356,7 @@ def makeRealDevice(zone) {
             ]
         )
     } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
-        log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
+        log.warn("${e.message} - you need to install the appropriate driver: 'Google Nest Zone Child'")
     } catch (IllegalArgumentException ignored) {
         //Intentionally ignored.  Expected if device id already exists in HE.
         getChildDevice(deviceId.toString())
