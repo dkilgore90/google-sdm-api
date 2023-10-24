@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.0.zones_alpha2
+ *  version: 1.1.0.zones_alpha3
  */
 
 metadata {
@@ -130,7 +130,7 @@ def initialize() {
     def devs = getChildDevices()
     def zones = []
     devs.each{
-        zones.append(it.getId().tokenize('_')[-1])
+        zones.append(it.getDeviceNetworkId().tokenize('_')[-1])
     }
     presenceInactive(zones)
     motionInactive(zones)
@@ -343,7 +343,7 @@ def getDeviceState(String attr) {
 }
 
 def makeRealDevice(zone) {
-    def deviceId = "${device.getId()}_${zone}"
+    def deviceId = "${device.getDeviceNetworkId()}_${zone}"
     def deviceName = "${device.getLabel()}_${zone}"
     try {
         addChildDevice(
