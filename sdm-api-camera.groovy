@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.0.zones_alpha3
+ *  version: 1.1.0.zones_alpha4
  */
 
 metadata {
@@ -130,7 +130,7 @@ def initialize() {
     def devs = getChildDevices()
     def zones = []
     devs.each{
-        zones.append(it.getDeviceNetworkId().tokenize('_')[-1])
+        zones.add(it.getDeviceNetworkId().tokenize('_')[-1])
     }
     presenceInactive(zones)
     motionInactive(zones)
