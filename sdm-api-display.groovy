@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.0.zones_alpha4
+ *  version: 1.1.0.zones_alpha5
  */
 
 metadata {
@@ -31,6 +31,8 @@ metadata {
 
         attribute 'rawImg', 'string'
         attribute 'streamUrl', 'string'
+
+        command 'createZoneDevice', [[name: 'name*', type: 'STRING', description: 'name of zone (must match name in Google Home)']]
     }
     
     preferences {
@@ -173,7 +175,7 @@ def presenceActive(zones=[]) {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
     zones.each{
-        def dev = makeRealDevice(it)
+        def dev = createZoneDevice(it)
         if (dev != null) {
             dev.presenceActive()
         }
@@ -184,7 +186,7 @@ def presenceInactive(zones=[]) {
     logDebug('Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
     zones.each{
-        def dev = makeRealDevice(it)
+        def dev = createZoneDevice(it)
         if (dev != null) {
             dev.presenceInactive()
         }
@@ -217,7 +219,7 @@ def motionActive(zones=[]) {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
     zones.each{
-        def dev = makeRealDevice(it)
+        def dev = createZoneDevice(it)
         if (dev != null) {
             dev.motionActive()
         }
@@ -228,7 +230,7 @@ def motionInactive(zones=[]) {
     logDebug('Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
     zones.each{
-        def dev = makeRealDevice(it)
+        def dev = createZoneDevice(it)
         if (dev != null) {
             dev.motionInactive()
         }
@@ -261,7 +263,7 @@ def soundActive(zones=[]) {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
     zones.each{
-        def dev = makeRealDevice(it)
+        def dev = createZoneDevice(it)
         if (dev != null) {
             dev.soundActive()
         }
@@ -272,7 +274,7 @@ def soundInactive(zones=[]) {
     logDebug('Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
     zones.each{
-        def dev = makeRealDevice(it)
+        def dev = createZoneDevice(it)
         if (dev != null) {
             dev.soundInactive()
         }
@@ -342,7 +344,7 @@ def getDeviceState(String attr) {
     }
 }
 
-def makeRealDevice(zone) {
+def createZoneDevice(zone) {
     def deviceId = "${device.getDeviceNetworkId()}_${zone}"
     def deviceName = "${device.getLabel()}_${zone}"
     try {
