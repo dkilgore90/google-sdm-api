@@ -84,7 +84,7 @@ Most of Google's 2021 models -- battery cam (indoor/outdoor), indoor hardwired c
 
 Google's 2021 battery doorbell supports a 10-frame mp4 clip preview -- this is handled using the same attributes as prior still image captures
 
-#### Google Drive
+### Google Drive
 New feature in App version 0.6.0, and corresponding Camera/Display/Doorbell driver versions 0.4.0, which allows the user to use
 Google Drive as storage for the still images downloaded from Nest events.  This feature enables the latest image to be displayed in
 both Local *and* Cloud dashboards.  Before enabling this feature, the user needs to enable the Drive API:
@@ -114,6 +114,11 @@ as for motion above.
 The doorbell chime will generate a *pushed* event on `button 1` for the device.
 
 Any of these HE events can be used for Rule Machine or Notification triggers.
+
+### Zones
+NOTE: only Google-branded devices appear to support zone tracking in the API -- legacy Nest devices are excluded.
+
+For a Camera, Display, or Doorbell device, a preferences toggle is available to enable tracking of events for defined zones via child devices.  A command is available on the primary device to pre-generate the zone children -- the name must exactly match the zone name defined in Google Home.
 
 ## Debug buttons -- not required for normal operation -- but useful to retry actions that might have failed during setup, such as the event subscription
 

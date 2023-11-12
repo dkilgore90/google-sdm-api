@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2023-11-12
+
+### sdm-api-app:1.1.0
+### sdm-api-camera:1.1.0
+### sdm-api-display:1.1.0
+### sdm-api-doorbell:1.1.0
+* Support zone events
+
+### sdm-api-zoneChild:0.0.1
+* New driver for child devices to represent individual zones.
+
 ## 2023-04-12
 
 ### sdm-api-app:1.0.8
