@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.0.zones_alpha4
+ *  version: 1.1.0
  */
 
 metadata {
@@ -46,6 +46,7 @@ metadata {
         input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', required: true, defaultValue: true
         input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', required: true, defaultValue: true
 
+        input 'trackZones', 'bool', title: 'Update child devices for zone events', required: true, defaultValue: false
         input 'enableVideoStream', 'bool', title: 'Enable Video Stream?', required: true, defaultValue: false
 
         input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
@@ -361,6 +362,9 @@ def getDeviceState(String attr) {
 }
 
 def createZoneDevice(zone) {
+    if (!trackZones) {
+        return
+    }
     def deviceId = "${device.getDeviceNetworkId()}_${zone}"
     def deviceName = "${device.getLabel()}_${zone}"
     try {
