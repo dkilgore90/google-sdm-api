@@ -16,7 +16,7 @@ import groovy.transform.Field
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.3
+ *  version: 1.1.0
  */
 
 metadata {
@@ -31,6 +31,8 @@ metadata {
 
         attribute 'rawImg', 'string'
         attribute 'streamUrl', 'string'
+
+        command 'createZoneDevice', [[name: 'name*', type: 'STRING', description: 'name of zone (must match name in Google Home)']]
     }
     
     preferences {
@@ -42,6 +44,7 @@ metadata {
         input 'motionImageCapture', 'bool', title: 'Motion - Capture image?', required: true, defaultValue: true
         input 'soundImageCapture', 'bool', title: 'Sound - Capture image?', required: true, defaultValue: true
 
+        input 'trackZones', 'bool', title: 'Update child devices for zone events', required: true, defaultValue: false
         input 'enableVideoStream', 'bool', title: 'Enable Video Stream?', required: true, defaultValue: false
 
         input name: "debugOutput", type: "bool", title: "Enable Debug Logging?", defaultValue: false
@@ -127,9 +130,14 @@ def initialize() {
         device.sendEvent(name: 'streamUrl', value: ' ')
     }
     // reset person, motion, sound states, clear activeThreads
-    presenceInactive()
-    motionInactive()
-    soundInactive()
+    def devs = getChildDevices()
+    def zones = []
+    devs.each{
+        zones.add(it.getDeviceNetworkId().tokenize('_')[-1])
+    }
+    presenceInactive(zones)
+    motionInactive(zones)
+    soundInactive(zones)
     activeThreads["${device.id}" as String] = [:]
 
     device.sendEvent(name: 'rawImg', value: device.currentValue('rawImg') ?: ' ')
@@ -142,100 +150,136 @@ def refresh() {
     parent.getDeviceData(device)
 }
 
-def processPerson(String threadState='', String threadId='') {
+def processPerson(String threadState='', String threadId='', zones=[]) {
     switch (threadState) {
     case 'ENDED':
-        presenceInactive()
+        presenceInactive(zones)
         removeActiveThread('person', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
-        presenceActive()
+        presenceActive(zones)
         appendActiveThread('person', threadId)
         break
     case '':
     default:
-        presenceActive()
+        presenceActive(zones)
         if (minimumPresenceTime == null) {
             device.updateSetting('minimumPresenceTime', 15)
         }
-        runIn(minimumPresenceTime, presenceInactive, [overwrite: true])
+        runIn(minimumPresenceTime, presenceInactive, [overwrite: true, data: zones])
         break
     }
 }
 
-def presenceActive() {
+def presenceActive(zones=[]) {
     logDebug('Person -- present')
     device.sendEvent(name: 'presence', value: 'present')
+    zones.each{
+        def dev = createZoneDevice(it)
+        if (dev != null) {
+            dev.presenceActive()
+        }
+    }
 }
 
-def presenceInactive() {
+def presenceInactive(zones=[]) {
     logDebug('Person -- not present')
     device.sendEvent(name: 'presence', value: 'not present')
+    zones.each{
+        def dev = createZoneDevice(it)
+        if (dev != null) {
+            dev.presenceInactive()
+        }
+    }
 }
 
-def processMotion(String threadState='', String threadId='') {
+def processMotion(String threadState='', String threadId='', zones=[]) {
     switch (threadState) {
     case 'ENDED':
-        motionInactive()
+        motionInactive(zones)
         removeActiveThread('motion', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
-        motionActive()
+        motionActive(zones)
         appendActiveThread('motion', threadId)
         break
     case '':
     default:
-        motionActive()
+        motionActive(zones)
         if (minimumMotionTime == null) {
             device.updateSetting('minimumMotionTime', 15)
         }
-        runIn(minimumMotionTime, motionInactive, [overwrite: true])
+        runIn(minimumMotionTime, motionInactive, [overwrite: true, data: zones])
         break
     }
 }
 
-def motionActive() {
+def motionActive(zones=[]) {
     logDebug('Motion -- active')
     device.sendEvent(name: 'motion', value: 'active')
+    zones.each{
+        def dev = createZoneDevice(it)
+        if (dev != null) {
+            dev.motionActive()
+        }
+    }
 }
 
-def motionInactive() {
+def motionInactive(zones=[]) {
     logDebug('Motion -- inactive')
     device.sendEvent(name: 'motion', value: 'inactive')
+    zones.each{
+        def dev = createZoneDevice(it)
+        if (dev != null) {
+            dev.motionInactive()
+        }
+    }
 }
 
-def processSound(String threadState='', String threadId='') {
+def processSound(String threadState='', String threadId='', zones=[]) {
     switch (threadState) {
     case 'ENDED':
-        soundInactive()
+        soundInactive(zones)
         removeActiveThread('sound', threadId)
         break
     case 'STARTED':
     case 'UPDATED':
-        soundActive()
+        soundActive(zones)
         appendActiveThread('sound', threadId)
         break
     case '':
     default:
-        soundActive()
+        soundActive(zones)
         if (minimumSoundTime == null) {
             device.updateSetting('minimumSoundTime', 15)
         }
-        runIn(minimumSoundTime, soundInactive, [overwrite: true])
+        runIn(minimumSoundTime, soundInactive, [overwrite: true, data: zones])
         break
     }
 }
 
-def soundActive() {
+def soundActive(zones=[]) {
     logDebug('Sound -- detected')
     device.sendEvent(name: 'sound', value: 'detected')
+    zones.each{
+        def dev = createZoneDevice(it)
+        if (dev != null) {
+            dev.soundActive()
+        }
+    }
 }
 
-def soundInactive() {
+def soundInactive(zones=[]) {
     logDebug('Sound -- not detected')
     device.sendEvent(name: 'sound', value: 'not detected')
+    zones.each{
+        def dev = createZoneDevice(it)
+        if (dev != null) {
+            dev.soundInactive()
+        }
+    }
 }
 
 def shouldGetImage(String event) {
@@ -298,5 +342,29 @@ def getDeviceState(String attr) {
         return state[attr]
     } else {
         refresh()
+    }
+}
+
+def createZoneDevice(zone) {
+    if (!trackZones) {
+        return
+    }
+    def deviceId = "${device.getDeviceNetworkId()}_${zone}"
+    def deviceName = "${device.getLabel()}_${zone}"
+    try {
+        addChildDevice(
+            'dkilgore90',
+            "Google Nest Zone Child",
+            deviceId.toString(),
+            [
+                name: deviceName.toString(),
+                label: deviceName.toString()
+            ]
+        )
+    } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
+        log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
+    } catch (IllegalArgumentException ignored) {
+        //Intentionally ignored.  Expected if device id already exists in HE.
+        getChildDevice(deviceId.toString())
     }
 }

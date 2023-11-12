@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.8
+ *  version: 1.1.0
  */
 
 definition(
@@ -565,13 +565,13 @@ def processCameraEvents(com.hubitat.app.DeviceWrapper device, Map events, String
             if (threadState in ['STARTED', '', null]) {
                 device.processChime()
             }
-            device.processPerson(threadState, threadId) //assume person must be present in order to push doorbell
+            device.processPerson(threadState, threadId, value.zones) //assume person must be present in order to push doorbell
         } else if (key == 'sdm.devices.events.CameraPerson.Person') {
-            device.processPerson(threadState, threadId)
+            device.processPerson(threadState, threadId, value.zones)
         } else if (key == 'sdm.devices.events.CameraMotion.Motion') {
-            device.processMotion(threadState, threadId)
+            device.processMotion(threadState, threadId, value.zones)
         } else if (key == 'sdm.devices.events.CameraSound.Sound') {
-            device.processSound(threadState, threadId)
+            device.processSound(threadState, threadId, value.zones)
         } else if (key == 'sdm.devices.events.CameraClipPreview.ClipPreview') {
             if (events.size() == 1) {
                 // If we hit this case, need to add sessionId lookup/handling so that we can correlate for `shouldGetImage()`
