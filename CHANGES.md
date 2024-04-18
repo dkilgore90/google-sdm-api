@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2024-04-18
+
+### sdm-api-app:1.1.1
+* Fix `image` events for Google drive -- iframe preview due to 3rd-party cookie restrictions
+
 ## 2023-11-12
 
 ### sdm-api-app:1.1.0
