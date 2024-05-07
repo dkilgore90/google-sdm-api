@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.1
+ *  version: 1.1.2
  */
 
 definition(
@@ -1090,7 +1090,7 @@ def handleUploadDrive(resp, data) {
             log.error("Upload image data to file -- response code: ${respCode}, body: ${respError}")
         }
     } else {
-        sendEvent(data.device, [name: 'image', value: '<iframe src="https://drive.google.com/file/d/' + data.photoId + '/preview" allow="autoplay"></iframe>', isStateChange: true])
+        sendEvent(data.device, [name: 'image', value: '<iframe src="https://drive.google.com/file/d/' + data.photoId + '/preview" width="95%" height="95%" allow="autoplay"></iframe>', isStateChange: true])
         //getPhotoDataDrive(data.photoId, data.device, data.type)
     }
 }
