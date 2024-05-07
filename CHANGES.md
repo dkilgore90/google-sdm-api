@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2024-05-07
+
+### sdm-api-app:1.1.2
+* `image` attribute iframe -- set height/width to "95%" to scale to dashboard tile
+
 ## 2024-04-18
 
 ### sdm-api-app:1.1.1
