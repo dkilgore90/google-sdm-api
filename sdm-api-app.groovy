@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.2
+ *  version: 1.2.0.beta1
  */
 
 definition(
@@ -75,6 +75,12 @@ def mainPage() {
             }
         }
         getAuthLink()
+        section {
+            input 'useStructure', 'bool', title: 'Filter devices/events by structure?', submitOnChange: true
+            if (useStructure) {
+                input 'structureToUse', 'enum', title: 'Select structure(s) to manage in this Hub', required: false, submitOnChange: true, options: state.structures, multiple: true
+            }
+        }
         getDiscoverButton()
         
         section {
@@ -114,6 +120,9 @@ def debugPage() {
         section {
             input 'cleanupDrive', 'button', title: 'Manually run Google Drive retention cleanup', submitOnChange: true
         }
+        section {
+            input 'structureList', 'button', title: 'Retrieve structures from Google', submitOnChange: true
+        }
     }
 }
 
@@ -129,7 +138,7 @@ def getAuthLink() {
         }
     } else {
         section {
-            paragraph "Authorization link is hidden until the required projectId and credentials.json inputs are provided, and App installation is saved by clicking 'Done'"
+            paragraph "<p style=\"color: red\">Authorization link is hidden until the required projectId and credentials.json inputs are provided, and App installation is saved by clicking 'Done'</p>"
         }
     }
 }
@@ -148,13 +157,18 @@ def buildAuthUrl() {
 }
 
 def getDiscoverButton() {
-    if (state?.googleAccessToken != null) {
+    logDebug(structureToUse)
+    if (state?.googleAccessToken != null) {            
         section {
-            input 'discoverDevices', 'button', title: 'Discover', submitOnChange: true
+            if (useStructure && !structureToUse) {
+                paragraph "<p style=\"color: red\">Settings indicate to filter by structure, but no structure has been selected.</p>"
+            } else {
+                input 'discoverDevices', 'button', title: 'Discover', submitOnChange: true
+            }
         }
     } else {
         section {
-            paragraph "Device discovery button is hidden until authorization is completed."
+            paragraph "<p style=\"color: red\">Device discovery button is hidden until authorization is completed.</p>"
         }
     }
 }
@@ -305,7 +319,7 @@ def rescheduleLogin() {
     if (state?.googleRefreshToken) {
         refreshLogin()
         runEvery1Hour refreshLogin
-        if (state.eventSubscription != 'v2') {
+        if (state.eventSubscription != 'v3') {
             updateEventSubscription()
         }
     }
@@ -384,6 +398,9 @@ def appButtonHandler(btn) {
     case 'cleanupDrive':
         driveRetentionJob()
         break
+    case 'structureList':
+        getStructures()
+        break
     }
 }
 
@@ -428,11 +445,57 @@ def handleDeviceList(resp, data) {
             device.type = it.type.tokenize('.')[-1].toLowerCase().capitalize()
             device.id = it.name.tokenize('/')[-1]
             device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
+            // assume single parentRelation for now
+            if (useStructure && !structureToUse.contains(it.parentRelations[0].parent.split('/rooms')[0])) {
+                log.info("Device ${device.label} skipped as it is not in specified structure(s)")
+                return
+            }
             def dev = makeRealDevice(device)
             if (dev != null) {
                 processTraits(dev, it)
             }
         }
+    }
+}
+
+private void getStructures() {
+    log.info('Retrieving structures')
+    def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/structures'
+    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+    def contentType = 'application/json'
+    def params = [ uri: uri, headers: headers, contentType: contentType ]
+    asynchttpGet(handleStructuresList, params, [params: params])
+}
+
+def handleStructuresList(resp, data) {
+    def respCode = resp.getStatus()
+    if (resp.hasError()) {
+        def respError = ''
+        try {
+            respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
+        } catch (Exception ignored) {
+            // no response body
+        }
+        if (respCode == 401 && !data.isRetry) {
+            log.warn('Authorization token expired, will refresh and retry.')
+            rescheduleLogin()
+            data.isRetry = true
+            asynchttpGet(handleDeviceList, data.params, data)
+        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
+            //data.backoffCount = (data.backoffCount ?: 0) + 1
+            //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleStructuresGet, data: data]])
+        } else {
+            log.warn("Structures-list response code: ${respCode}, body: ${respError}")
+        }
+    } else {
+        def respJson = resp.getJson()
+        logDebug("Structures: ${respJson}")
+        structures = [:]
+        respJson.structures.each {
+            structures[it.name] = it.traits['sdm.structures.traits.Info'].customName
+        }
+        state.structures = structures
     }
 }
 
@@ -609,7 +672,7 @@ def retryEventSubscription() {
 
 def buildSubscriptionRequest() {
     def creds = getCredentials()
-    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
+    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api_' + getHubUID()
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
     def body = [
@@ -642,7 +705,7 @@ def putResponse(resp, data) {
         runIn(3600, retryEventSubscription)
     } else {
         logDebug(resp.getJson())
-        state.eventSubscription = 'v2'
+        state.eventSubscription = 'v3'
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
@@ -653,7 +716,12 @@ def putResponse(resp, data) {
 }
 
 def updateEventSubscription() {
-    log.info('Updating Google pub/sub event subscription')
+    deleteLegacyEventSubscription()
+    createEventSubscription()
+}
+
+def patchEventSubscription() {
+    log.info('Patching Google pub/sub event subscription')
     def params = buildSubscriptionRequest()
     params.body = [subscription: params.body]
     params.body.updateMask = 'messageRetentionDuration,retryPolicy'
@@ -669,10 +737,10 @@ def patchResponse(resp, data) {
         } catch (Exception ignored) {
             // no response body
         }
-        log.error("updateEventSubscription returned status code ${respCode} -- ${respError}")
+        log.error("patchEventSubscription returned status code ${respCode} -- ${respError}")
     } else {
         logDebug(resp.getJson())
-        state.eventSubscription = 'v2'
+        state.eventSubscription = 'v3'
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
@@ -747,10 +815,22 @@ void removeChildren() {
     }
 }
 
+void deleteLegacyEventSubscription() {
+    log.info('Deleting legacy Google pub/sub event subscription')
+    def creds = getCredentials()
+    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
+    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+    def contentType = 'application/json'
+    def params = [uri: uri, headers: headers, contentType: contentType]
+    httpDelete(params) { response ->
+        log.info("Deleting legacy event subscription: response code ${response.getStatus()}")
+    }
+}
+
 void deleteEventSubscription() {
     log.info('Deleting Google pub/sub event subscription')
     def creds = getCredentials()
-    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
+    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api_' + getHubUID()
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
     def params = [uri: uri, headers: headers, contentType: contentType]
