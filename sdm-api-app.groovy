@@ -1,6 +1,3 @@
-import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
-
 /**
  *
  *  Copyright 2020-2022 David Kilgore. All Rights Reserved
@@ -19,6 +16,12 @@ import groovy.json.JsonOutput
  *
  *  version: 1.2.0.beta1
  */
+
+//file:noinspection unused
+//file:noinspection SpellCheckingInspection
+//file:noinspection GroovyAssignabilityCheck
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 
 definition(
         name: 'Google SDM API',
@@ -143,9 +146,10 @@ def getAuthLink() {
     }
 }
 
-def buildAuthUrl() {
-    def creds = getCredentials()
-    url = 'https://nestservices.google.com/partnerconnections/' + projectId + 
+String buildAuthUrl() {
+    Map creds = getCredentials()
+    String url
+    url = 'https://nestservices.google.com/partnerconnections/' + projectId +
             '/auth?redirect_uri=https://cloud.hubitat.com/oauth/stateredirect' +
             '&state=' + getHubUID() + '/apps/' + app.id + '/handleAuth?access_token=' + state.accessToken +
             '&access_type=offline&prompt=consent&client_id=' + creds.client_id + 
@@ -158,7 +162,7 @@ def buildAuthUrl() {
 
 def getDiscoverButton() {
     logDebug(structureToUse)
-    if (state?.googleAccessToken != null) {            
+    if (state?.googleAccessToken != null) {
         section {
             if (useStructure && !structureToUse) {
                 paragraph "<p style=\"color: red\">Settings indicate to filter by structure, but no structure has been selected.</p>"
@@ -212,7 +216,7 @@ def listDiscoveredDevices() {
     }
 }
 
-def validateProjectId() {
+Boolean validateProjectId() {
     def uuidPattern = ~/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
     if (uuidPattern.matcher(projectId ?: '').matches()) {
         return true
@@ -220,27 +224,27 @@ def validateProjectId() {
         log.warn('projectId input is not a valid UUID')
         return false
     }
-
 }
 
-def getCredentials() {
+Map getCredentials() {
     //def uri = 'https://' + location.hub.localIP + '/local/credentials.json'
     //def creds = httpGet([uri: uri]) { response }
     def creds
     try {
         creds = new JsonSlurper().parseText(settings?.credentials ?: 'default')
-    } catch (groovy.json.JsonException e) {
+    } catch (ignored) {
         log.warn('credentials.json input is not valid JSON')
-        return false
+        return null
     }
     try {
         def test1 = creds.web
-        def test2 = test1.project_id
+        def test2
+        test2 = test1.project_id
         test2 = test1.client_id
         test2 = test1.client_secret
-    } catch (groovy.lang.MissingPropertyException e) {
+    } catch (ignored) {
         log.warn('credentials.json input is missing required attribute')
-        return false
+        return null
     }
     return creds.web
 }
@@ -325,18 +329,18 @@ def rescheduleLogin() {
     }
 }
 
-def login(String authCode) {
+String login(String authCode) {
     log.info('Getting access_token from Google')
-    def creds = getCredentials()
-    def uri = 'https://www.googleapis.com/oauth2/v4/token'
-    def query = [
+    Map creds = getCredentials()
+    String uri = 'https://www.googleapis.com/oauth2/v4/token'
+    Map query = [
                     client_id    : creds.client_id,
                     client_secret: creds.client_secret,
                     code         : authCode,
                     grant_type   : 'authorization_code',
                     redirect_uri : 'https://cloud.hubitat.com/oauth/stateredirect'
                 ]
-    def params = [uri: uri, query: query]
+    Map params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
     } catch (groovyx.net.http.HttpResponseException e) {
@@ -349,15 +353,15 @@ def login(String authCode) {
 
 def refreshLogin() {
     log.info('Refreshing access_token from Google')
-    def creds = getCredentials()
-    def uri = 'https://www.googleapis.com/oauth2/v4/token'
-    def query = [
+    Map creds = getCredentials()
+    String uri = 'https://www.googleapis.com/oauth2/v4/token'
+    Map query = [
                     client_id    : creds.client_id,
                     client_secret: creds.client_secret,
                     refresh_token: state.googleRefreshToken,
                     grant_type   : 'refresh_token',
                 ]
-    def params = [uri: uri, query: query]
+    Map params = [uri: uri, query: query]
     try {
         httpPost(params) { response -> handleLoginResponse(response) }
     } catch (groovyx.net.http.HttpResponseException e) {
@@ -378,6 +382,7 @@ def handleLoginResponse(resp) {
 def appButtonHandler(btn) {
     switch (btn) {
     case 'discoverDevices':
+        getStructures()
         discover()
         break
     case 'eventSubscribe':
@@ -404,16 +409,16 @@ def appButtonHandler(btn) {
     }
 }
 
-private void discover(refresh=false) {
+private void discover(Boolean refresh=false) {
     if (refresh) {
         log.info("Refreshing all device states")
     } else {
         log.info("Discovery started")
     }
-    def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/devices'
-    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
-    def contentType = 'application/json'
-    def params = [ uri: uri, headers: headers, contentType: contentType ]
+    String uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/devices'
+    Map headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+    String contentType = 'application/json'
+    Map params = [ uri: uri, headers: headers, contentType: contentType ]
     asynchttpGet(handleDeviceList, params, [params: params])
 }
 
@@ -439,27 +444,40 @@ def handleDeviceList(resp, data) {
             log.warn("Device-list response code: ${respCode}, body: ${respError}")
         }
     } else {
-        def respJson = resp.getJson()
-        respJson.devices.each {
-            def device = [:]
+        Integer i; i=0
+        Map respJson = resp.getJson()
+        ((List<Map>)respJson.devices).each {
+            Map device = [:]
             device.type = it.type.tokenize('.')[-1].toLowerCase().capitalize()
             device.id = it.name.tokenize('/')[-1]
-            device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
+            String cn= it.traits['sdm.devices.traits.Info'].customName
+            device.label = !(cn in ['Cam','Tstat']) ? cn : it.parentRelations[0].displayName
             // assume single parentRelation for now
-            if (useStructure && !structureToUse.contains(it.parentRelations[0].parent.split('/rooms')[0])) {
+            if (useStructure && structureToUse && !structureToUse.contains(it.parentRelations[0].parent.split('/rooms')[0])) {
                 log.info("Device ${device.label} skipped as it is not in specified structure(s)")
+                def foo = getChildDevice(device.id)
+                if (foo) {
+                    log.info("Device ${device.label} exists and it is not in specified structure(s) - DELETING")
+                    deleteChildDevice foo.getDeviceNetworkId()
+                }
                 return
             }
             def dev = makeRealDevice(device)
             if (dev != null) {
+                if(i==0) getStructures()
+		        i++
                 processTraits(dev, it)
             }
         }
     }
 }
 
-private void getStructures() {
-    log.info('Retrieving structures')
+private void getStructures(Boolean refresh=false){
+    if (refresh) {
+        log.info("Refreshing structures")
+    } else {
+        log.info("Structures Discovery started")
+    }
     def uri = 'https://smartdevicemanagement.googleapis.com/v1/enterprises/' + projectId + '/structures'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
@@ -481,7 +499,7 @@ def handleStructuresList(resp, data) {
             rescheduleLogin()
             data.isRetry = true
             asynchttpGet(handleDeviceList, data.params, data)
-        //} else if (respCode == 429 && data.backoffCount < 5) {
+            //} else if (respCode == 429 && data.backoffCount < 5) {
             //log.warn("Hit rate limit, backoff and retry -- response: ${respError}")
             //data.backoffCount = (data.backoffCount ?: 0) + 1
             //runIn(10, handleBackoffRetryGet, [overwrite: false, data: [callback: handleStructuresGet, data: data]])
@@ -491,11 +509,18 @@ def handleStructuresList(resp, data) {
     } else {
         def respJson = resp.getJson()
         logDebug("Structures: ${respJson}")
-        structures = [:]
+        Map structures = [:]
         respJson.structures.each {
             structures[it.name] = it.traits['sdm.structures.traits.Info'].customName
         }
         state.structures = structures
+        /*
+        String n= it.traits['sdm.structures.traits.Info'].customName
+        state.locationName= n
+        String s= it.name
+        List t= s.split('/')
+        String sid= t[3]
+        state.locationid= sid */
     }
 }
 
@@ -503,8 +528,8 @@ def handleBackoffRetryGet(map) {
     asynchttpGet(map.callback, map.data.params, map.data)
 }
 
-def makeRealDevice(device) {
-    def deviceType = "Google Nest ${device.type}"
+def makeRealDevice(Map device) {
+    String deviceType = "Google Nest ${device.type}"
     try {
         addChildDevice(
             'dkilgore90',
@@ -523,10 +548,14 @@ def makeRealDevice(device) {
     }
 }
 
+
 def processTraits(device, details) {
     logDebug("Processing data for ${device}: ${details}")
     def room = details.parentRelations?.getAt(0)?.displayName
-    room ? device.setDeviceState('room', room) : null
+    room ? device.setDeviceState('room', room) : null // this presumes the nest room name matches HE room names
+    room ? sendEvent(device, [name: 'room', value: room]) : null
+/*  String locationName = state.locationName
+    locationName ? sendEvent(device, [name: 'location', value: locationName]) : null */
     if (device.hasCapability('Thermostat')) {
         processThermostatTraits(device, details)
     } else {
@@ -534,40 +563,45 @@ def processTraits(device, details) {
     }
 }
 
-def processThermostatTraits(device, details) {
+def processThermostatTraits(device, Map<String,Map<String,Map>>details) {
     def humidity = details.traits['sdm.devices.traits.Humidity']?.ambientHumidityPercent
     humidity ? sendEvent(device, [name: 'humidity', value: humidity, unit: '%']) : null
-    def connectivity = details.traits['sdm.devices.traits.Connectivity']?.status
+    String connectivity = details.traits['sdm.devices.traits.Connectivity']?.status
     connectivity ? sendEvent(device, [name: 'connectivity', value: connectivity]) : null
-    def fanStatus = details.traits['sdm.devices.traits.Fan']?.timerMode
+    String fanStatus
+    fanStatus = details.traits['sdm.devices.traits.Fan']?.timerMode
     fanStatus ? sendEvent(device, [name: 'thermostatFanMode', value: fanStatus == 'OFF' ? 'auto' : 'on']) : null
     fanStatus ? sendEvent(device, [name: 'supportedThermostatFanModes', value: JsonOutput.toJson(['auto', 'on'])]) : null
     def fanTimeout = details.traits['sdm.devices.traits.Fan']?.timerTimeout
     fanTimeout ? sendEvent(device, [name: 'fanTimeout', value: fanStatus == 'OFF' ? '' : fanTimeout]) : null
-    def nestMode = details.traits['sdm.devices.traits.ThermostatMode']?.mode
-    nestMode ? sendEvent(device, [name: 'thermostatMode', value: nestMode == 'HEATCOOL' ? 'auto' : nestMode.toLowerCase()]) : null
-    def nestAvailableModes = details.traits['sdm.devices.traits.ThermostatMode']?.availableModes
+    String nestMode
+    nestMode = details.traits['sdm.devices.traits.ThermostatMode']?.mode
+    nestMode = nestMode == 'HEATCOOL' ? 'auto' : nestMode?.toLowerCase()
+    nestMode ? sendEvent(device, [name: 'thermostatMode', value: nestMode]) : null
+    (nestMode && !(nestMode in ['off','eco'])) ? sendEvent(device, [name:'currentmode', value: nestMode]) : null
+    List nestAvailableModes = details.traits['sdm.devices.traits.ThermostatMode']?.availableModes
     nestAvailableModes ? sendEvent(device, [name: 'supportedThermostatModes', value: translateNestAvailableModes(nestAvailableModes)]) : null
-    def ecoMode = details.traits['sdm.devices.traits.ThermostatEco']?.mode
+    String ecoMode = details.traits['sdm.devices.traits.ThermostatEco']?.mode
     ecoMode ? sendEvent(device, [name: 'ecoMode', value: ecoMode]) : null
     def ecoCoolPoint = details.traits['sdm.devices.traits.ThermostatEco']?.coolCelsius
     def ecoHeatPoint = details.traits['sdm.devices.traits.ThermostatEco']?.heatCelsius
-    def nestHvac = details.traits['sdm.devices.traits.ThermostatHvac']?.status
-    def operState = ''
+    String nestHvac = details.traits['sdm.devices.traits.ThermostatHvac']?.status
+    String operState
     fanStatus = fanStatus ? fanStatus.toLowerCase() : device.currentValue('thermostatFanMode')
-    def hvacRunning = isHvacRunning(device)
+    Boolean hvacRunning = isHvacRunning(device)
     if (nestHvac == 'OFF' || (nestHvac == null && !hvacRunning)) {
         operState = fanStatus == 'on' ? 'fan only' : 'idle'
     } else {
         operState = nestHvac?.toLowerCase()
     }
     operState ? sendEvent(device, [name: 'thermostatOperatingState', value: operState]) : null
-    def tempScale = details.traits['sdm.devices.traits.Settings']?.temperatureScale
-    tempScale ? sendEvent(device, [name: 'tempScale', value: tempScale]) : null
+    String tempScale
+    tempScale = details.traits['sdm.devices.traits.Settings']?.temperatureScale
     if (tempScale && tempScale.substring(0, 1) != getTemperatureScale()) {
         log.warn("Overriding ${device} tempScale: ${tempScale} with HE config: ${getTemperatureScale()}")
         tempScale = getTemperatureScale() == 'F' ? 'FAHRENHEIT' : 'CELSIUS'
     }
+    tempScale ? sendEvent(device, [name: 'tempScale', value: tempScale]) : null
     def coolPoint = details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.coolCelsius
     def heatPoint = details.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']?.heatCelsius
     def temp = details.traits['sdm.devices.traits.Temperature']?.ambientTemperatureCelsius
@@ -578,18 +612,14 @@ def processThermostatTraits(device, details) {
     temp ? sendEvent(device, [name: 'temperature', value: convertTemperatureIfNeeded(temp, 'C', 1), unit: '°' + getTemperatureScale()]) : null
 }
 
-def isHvacRunning(device) {
+Boolean isHvacRunning(device) {
     def hvac = device.currentValue('thermostatOperatingState')
-    if (hvac == 'fan only' || hvac == 'idle') {
-        return false
-    } else {
-        return true
-    }
+	return !(hvac == 'fan only' || hvac == 'idle')
 }
 
-def translateNestAvailableModes(modes) {
-    def trModes = []
-    modes.each {
+String translateNestAvailableModes(List<String> modes) {
+    List trModes = []
+    modes.each { String it ->
         if (it == 'HEATCOOL') {
             trModes.add('auto')
         } else {
@@ -607,7 +637,7 @@ def convertAndRoundTemp(value) {
     }
 }
 
-def processCameraTraits(device, details) {
+def processCameraTraits(device, Map<String,Map<String,Map>>details) {
     if (details?.traits?.get('sdm.devices.traits.CameraEventImage') != null) {
         device.setDeviceState('captureType', 'image')
     } else if (details?.traits?.get('sdm.devices.traits.CameraClipPreview') != null) {
@@ -671,11 +701,11 @@ def retryEventSubscription() {
 }
 
 def buildSubscriptionRequest() {
-    def creds = getCredentials()
-    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api_' + getHubUID()
-    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
-    def contentType = 'application/json'
-    def body = [
+    Map creds = getCredentials()
+    String uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api_' + getHubUID()
+    Map headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+    String contentType = 'application/json'
+    Map body = [
         topic: 'projects/sdm-prod/topics/enterprise-' + projectId,
         pushConfig: [
             pushEndpoint: getFullApiServerUrl() + '/events?access_token=' + state.accessToken
@@ -754,7 +784,7 @@ def postEvents() {
     logDebug('Event received from Google pub/sub')
     def dataString = new String(request.JSON?.message.data.decodeBase64())
     logDebug(dataString.replaceAll('[\n]', '').replaceAll('[ \t]+', ' '))
-    def dataJson = new JsonSlurper().parseText(dataString)
+    Map dataJson = new JsonSlurper().parseText(dataString)
     // format back to millisecond decimal places in case the timestamp has micro-second resolution
     int periodIndex = dataJson.timestamp.lastIndexOf('.')
     if (periodIndex) {
@@ -765,7 +795,7 @@ def postEvents() {
     }
 
     try {
-        if (toDateTime(dataJson.timestamp) < new Date(state.lastRecovery)) {
+        if (wtoDateTime(dataJson.timestamp) < new Date(state.lastRecovery)) {
             logDebug("Dropping event as its timestamp ${dataJson.timestamp} is before lastRecovery ${state.lastRecovery}")
             return
         }
@@ -786,13 +816,13 @@ def postEvents() {
             def lastEvent = device.getLastEventTime() ?: '1970-01-01T00:00:00.000Z'
             def timeCompare = -1
             try {
-                timeCompare = (toDateTime(dataJson.timestamp)).compareTo(toDateTime(lastEvent))
+                timeCompare = wtoDateTime(dataJson.timestamp).compareTo(wtoDateTime(lastEvent))
             } catch (java.text.ParseException e) {
                 //don't expect this to ever fail - catch for safety only
                 log.warn("Timestamp parse error -- timestamp: ${dataJson.timestamp}, lastEventTime: ${lastEvent}")
             }
             if ( timeCompare >= 0) {
-                def utcTimestamp = toDateTime(dataJson.timestamp)
+                Date utcTimestamp = wtoDateTime(dataJson.timestamp)
                 device.setDeviceState('lastEventTime', utcTimestamp.format("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", location.timeZone))
                 processThermostatTraits(device, dataJson.resourceUpdate)
             } else {
@@ -829,11 +859,11 @@ void deleteLegacyEventSubscription() {
 
 void deleteEventSubscription() {
     log.info('Deleting Google pub/sub event subscription')
-    def creds = getCredentials()
-    def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api_' + getHubUID()
-    def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
-    def contentType = 'application/json'
-    def params = [uri: uri, headers: headers, contentType: contentType]
+    Map creds = getCredentials()
+    String uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api_' + getHubUID()
+    Map headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
+    String contentType = 'application/json'
+    Map params = [uri: uri, headers: headers, contentType: contentType]
     httpDelete(params) { response ->
         log.info("Deleting event subscription: response code ${response.getStatus()}")
     }
@@ -846,7 +876,8 @@ def logToken() {
 def refreshAll() {
     log.info('Dropping stale events with timestamp < now, and refreshing devices')
     state.lastRecovery = now()
-    discover(refresh=true)
+    getStructures(true)
+    discover(true)
 }
 
 def getDeviceData(com.hubitat.app.DeviceWrapper device) {
@@ -1420,3 +1451,6 @@ def driveRetentionJob() {
         log.info('Google Drive is not used for image archive, skipping retention job')
     }
 }
+
+private Long wnow(){ return (Long)now() }
+private Date wtoDateTime(String s){ return (Date)toDateTime(s) }
