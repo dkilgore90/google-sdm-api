@@ -38,6 +38,10 @@ metadata {
         attribute 'ecoHeatPoint', 'number'
         attribute 'tempScale', 'string'
 
+        attribute 'currentmode', 'string'
+        attribute 'room', 'string'
+        attribute 'location', 'string'
+
         command 'fanOn', [[name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setThermostatFanMode', [[name: 'fanmode', type: 'ENUM', constraints: ['auto', 'on']], [name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setEcoMode', [[name: 'ecoMode*', type: 'ENUM', constraints: ['OFF', 'MANUAL_ECO']]]
