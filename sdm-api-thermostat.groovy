@@ -16,7 +16,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.0.1
+ *  version: 1.0.2
  */
 
 metadata {
@@ -119,7 +119,7 @@ def setCoolingSetpoint(temp) {
         def heat = device.currentValue('heatingSetpoint')
         def tempMovement = checkDeadband(heat, temp)
         if (tempMovement > 0) {
-            heat = heat.toFloat() - tempMovement.toFloat()
+            heat = heat.toDouble() - tempMovement.toDouble()
         }
         parent.deviceSetTemperatureSetpoint(device, heat, temp)
     } else {
@@ -135,7 +135,7 @@ def setHeatingSetpoint(temp) {
         def cool = device.currentValue('coolingSetpoint')
         def tempMovement = checkDeadband(temp, cool)
         if (tempMovement > 0) {
-            cool = cool.toFloat() + tempMovement.toFloat()
+            cool = cool.toDouble() + tempMovement.toDouble()
         }
         parent.deviceSetTemperatureSetpoint(device, temp, cool)
     } else {
@@ -160,8 +160,8 @@ def setHeatCoolSetpoint(heat, cool) {
 def checkDeadband(heat, cool) {
     try {
         def deadband = getTemperatureScale() == 'F' ? 2.7 : 1.5
-        def tempMovement = heat.toFloat() - cool.toFloat() + deadband
-        return tempMovement
+        def tempMovement = heat.toDouble() - cool.toDouble() + deadband.toDouble()
+        return (tempMovement.round(1))
     } catch (NullPointerException e) {
         return 0
     }
