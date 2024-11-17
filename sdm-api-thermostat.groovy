@@ -118,8 +118,9 @@ def setCoolingSetpoint(temp) {
     } else if (mode == 'auto') {
         def heat = device.currentValue('heatingSetpoint')
         def tempMovement = checkDeadband(heat, temp)
+        // if the cool set point violates the necessary dead band, then decrease the heat set point from the cool setpoint
         if (tempMovement > 0) {
-            heat = heat.toDouble() - tempMovement.toDouble()
+            heat = temp - tempMovement
         }
         parent.deviceSetTemperatureSetpoint(device, heat, temp)
     } else {
@@ -134,8 +135,9 @@ def setHeatingSetpoint(temp) {
     } else if (mode == 'auto') {
         def cool = device.currentValue('coolingSetpoint')
         def tempMovement = checkDeadband(temp, cool)
+        // if the heat set point violates the necessary dead band, then increase the cool set point from the heat setpoint
         if (tempMovement > 0) {
-            cool = cool.toDouble() + tempMovement.toDouble()
+            cool = temp + tempMovement
         }
         parent.deviceSetTemperatureSetpoint(device, temp, cool)
     } else {
@@ -146,8 +148,8 @@ def setHeatingSetpoint(temp) {
 def setHeatCoolSetpoint(heat, cool) {
     def mode = device.currentValue('thermostatMode')
     if (mode == 'auto') {
-        def tempMovement = checkDeadband(heat, cool)
-        if  (tempMovement <= 0) {
+        // when setting heat and cool, we do not know which set point to adjust for the deadband, so log an error
+        if (checkDeadband(heat, cool) == 0) {
             parent.deviceSetTemperatureSetpoint(device, heat, cool)
         } else {
             log.error("Heat/Cool setpoints require a minimum deadband of 1.5*C or 2.7*F -- inputs: ${heat} / ${cool}")
@@ -160,10 +162,14 @@ def setHeatCoolSetpoint(heat, cool) {
 def checkDeadband(heat, cool) {
     try {
         def deadband = getTemperatureScale() == 'F' ? 2.7 : 1.5
-        def tempMovement = heat.toDouble() - cool.toDouble() + deadband.toDouble()
-        return (tempMovement.round(1))
+        // check if we have the necessary deadband between the heat and cool set points
+        if ((cool - heat) < deadband) {
+            return (deadband)
+        } else {
+            return (0.0)
+        }
     } catch (NullPointerException e) {
-        return 0
+        return (0.0)
     }
 }
 
