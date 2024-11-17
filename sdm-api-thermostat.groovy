@@ -41,7 +41,9 @@ metadata {
         command 'fanOn', [[name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setThermostatFanMode', [[name: 'fanmode', type: 'ENUM', constraints: ['auto', 'on']], [name: 'duration', type: 'NUMBER', description: 'length of time, in seconds']]
         command 'setEcoMode', [[name: 'ecoMode*', type: 'ENUM', constraints: ['OFF', 'MANUAL_ECO']]]
-        command 'setHeatCoolSetpoint', [[name: 'heatPoint*', type: 'NUMBER'], [name: 'coolPoint*', type: 'NUMBER']]
+        command 'setHeatCoolSetpoint', [[name: 'heatPoint*', type: 'DECIMAL'], [name: 'coolPoint*', type: 'DECIMAL']]       
+        command 'setHeatingSetpoint', [[name: 'heatPoint*', type: 'DECIMAL']]
+        command 'setCoolingSetpoint', [[name: 'coolPoint*', type: 'DECIMAL']]
     }
     
     preferences {
