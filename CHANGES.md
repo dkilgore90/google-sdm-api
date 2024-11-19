@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2024-11-12
+
+### sdm-api-app:1.1.3
+### sdm-api-thermostat:1.0.2
+* Round heat/cool set points and dead band calculation to one decimal place
+* Addresses issue with invalid set points when within the dead band range
+
 ## 2024-05-07
 
 ### sdm-api-app:1.1.2

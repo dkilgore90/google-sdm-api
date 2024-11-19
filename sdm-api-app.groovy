@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.2
+ *  version: 1.1.3
  */
 
 definition(
@@ -540,7 +540,7 @@ def convertAndRoundTemp(value) {
     if (getTemperatureScale() == 'F') {
         return new Double(celsiusToFahrenheit(value)).round()
     } else {
-        return new Double(value * 2).round() / 2
+        return new Double(value).round(1)
     }
 }
 
@@ -823,16 +823,12 @@ def deviceSetTemperatureSetpoint(com.hubitat.app.DeviceWrapper device, heatPoint
         log.warn('Cannot adjust temperature setpoint(s) when device is in MANUAL_ECO mode')
         return
     }
-    if (device.currentValue('tempScale') == 'FAHRENHEIT') {
-        coolPoint = coolPoint ? fahrenheitToCelsius(coolPoint) : null
-        heatPoint = heatPoint ? fahrenheitToCelsius(heatPoint) : null
-    }
     if (coolPoint && heatPoint) {
-        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange', [coolCelsius: coolPoint, heatCelsius: heatPoint])
+        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange', [coolCelsius: convertAndRoundTemp(coolPoint), heatCelsius: convertAndRoundTemp(heatPoint)])
     } else if (coolPoint) {
-        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool', [coolCelsius: coolPoint])
+        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool', [coolCelsius: convertAndRoundTemp(coolPoint)])
     } else if (heatPoint) {
-        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat', [heatCelsius: heatPoint])
+        deviceSendCommand(device, 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat', [heatCelsius: convertAndRoundTemp(heatPoint)])
     }
 }
 
