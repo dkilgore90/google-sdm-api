@@ -171,7 +171,6 @@ def buildAuthUrl() {
 }
 
 def getDiscoverButton() {
-    logDebug(structureToUse)
     if (state?.googleAccessToken != null) {            
         section {
             if (useStructure && !structureToUse) {
@@ -464,9 +463,13 @@ def handleDeviceList(resp, data) {
             device.id = it.name.tokenize('/')[-1]
             device.label = it.traits['sdm.devices.traits.Info'].customName ?: it.parentRelations[0].displayName
             // assume single parentRelation for now
-            if (useStructure && !structureToUse.contains(it.parentRelations[0].parent.split('/rooms')[0])) {
-                log.info("Device ${device.label} skipped as it is not in specified structure(s)")
-                return
+            try {
+                if (useStructure && !structureToUse.contains(it.parentRelations[0].parent.split('/rooms')[0])) {
+                    log.info("Device ${device.label} skipped as it is not in specified structure(s)")
+                    return
+                }
+            } catch (Exception e) {
+                log.warn("Failed to validate structure: ${e}")
             }
             def dev = makeRealDevice(device)
             if (dev != null) {
