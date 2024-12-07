@@ -442,22 +442,23 @@ def handleBackoffRetryGet(map) {
 
 def makeRealDevice(device) {
     def deviceType = "Google Nest ${device.type}"
-    try {
-        addChildDevice(
-            'dkilgore90',
-            deviceType.toString(),
-            device.id,
-            [
-                name: device.label,
-                label: device.label
-            ]
-        )
-    } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
-        log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
-    } catch (IllegalArgumentException ignored) {
-        //Intentionally ignored.  Expected if device id already exists in HE.
-        getChildDevice(device.id)
+    com.hubitat.app.DeviceWrapper dev = getChildDevice(device.id)
+    if (!dev) {
+        try {
+            dev = addChildDevice(
+                'dkilgore90',
+                deviceType.toString(),
+                device.id,
+                [
+                    name: device.label,
+                    label: device.label
+                ]
+            )
+        } catch (com.hubitat.app.exception.UnknownDeviceTypeException e) {
+            log.warn("${e.message} - you need to install the appropriate driver: ${device.type}")
+        }
     }
+    return dev
 }
 
 def processTraits(device, details) {
