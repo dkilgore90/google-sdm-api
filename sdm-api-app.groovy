@@ -92,6 +92,7 @@ def mainPage() {
         section {
             input 'useStructure', 'bool', title: 'Filter devices/events by structure?', submitOnChange: true
             if (useStructure) {
+                input 'structureList', 'button', title: 'Retrieve structures', submitOnChange: true
                 input 'structureToUse', 'enum', title: 'Select structure(s) to manage in this Hub', required: false, submitOnChange: true, options: state.structures, multiple: true
             }
         }
@@ -159,7 +160,7 @@ def getAuthLink() {
 
 def buildAuthUrl() {
     def creds = getCredentials()
-    url = 'https://nestservices.google.com/partnerconnections/' + projectId + 
+    String url = 'https://nestservices.google.com/partnerconnections/' + projectId + 
             '/auth?redirect_uri=https://cloud.hubitat.com/oauth/stateredirect' +
             '&state=' + getHubUID() + '/apps/' + app.id + '/handleAuth?access_token=' + state.accessToken +
             '&access_type=offline&prompt=consent&client_id=' + creds.client_id + 
