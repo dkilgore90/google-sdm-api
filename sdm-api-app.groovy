@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.3.0-multiloc.2
+ *  version: 1.3.0-multiloc.3
  */
 
 definition(
