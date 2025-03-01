@@ -15,8 +15,29 @@ Follow the [Get Started QuickStart](https://developers.google.com/nest/device-ac
 10. Enter a name for your project.
 11. Enter the **OAuth 2.0 Client ID** generated above during _Set up Google Cloud Platform_
 12. Enable events so that asynchronous events will be sent via Google Cloud Pub/Sub
+* The Pub/Sub setup process has changed as of January 23rd 2025 -- a topic must be manually created.  These steps are listed below in the [**Pub/Sub setup**](#pubsub-setup) section.
 13. Upon completion, your project is assigned a **Project ID**, in the form of a UUID. You will need this when creating the Hubitat App later.
 14. Go to the [Cloud Pub/Sub API](https://console.developers.google.com/apis/library/pubsub.googleapis.com) page, and enable the Pub/Sub API for your Google Cloud Platform (GCP) project.
+
+## PubSub Setup
+This section describes how to configure your Device Access Project with a Pub/Sub topic to publish events for devices in your home. Home Assistant and the Device Access Project must be configured to use the Topic Name otherwise you will not receive events.
+
+If you previously set up events, then your Device Access Project may have already created a topic for you and you can use that topic name. For new projects, or if you disable events, you need to create the topic yourself following the instructions below. (Hubitat App: 1.2.0 or newer required to use the new custom topic model)
+
+1. Go to the [Pub/Sub Google Cloud Console](https://console.cloud.google.com/cloudpubsub/topic/list).
+2. Select **Create Topic**.
+3. Enter a **Topic ID** such as `hubitat-google-sdm`. You may leave the default settings.
+4. Select **Create** to create the topic.
+5. You now have a **Topic Name** needed by the Device Access Console and Hubitat. The full **Topic Name** that contains your Cloud Project ID and the **Topic ID** such as `projects/<cloud console id>/topics/hubitat-google-sdm`.
+6. Next, you need to give the Device Access Console permission to publish to your Topic. From the Pub/Sub Topic page select **Add Principal**.
+7. In **New Principals** enter `sdm-publisher@googlegroups.com`
+8. In **Select a Role** under **Pub/Sub** select **Pub/Sub Publisher** and **Create**.
+9. Next you can configure the **Device Access Console** to use this topic. Visit the [Device Access Console](https://console.nest.google.com/device-access/).
+10. Select the **Device Access Project** you previously created (or are currently creating). It should show the Pub/Sub topic as disabled. If there is an existing topic shown, then you may delete it and use the one you just created to avoid getting them mixed up.
+11. Select **…** next to Pub/Sub topic, then **Enable events with PubSub topic**.
+12. Enter the full Pub/Sub **Topic Name** and select **Add & Validate**. If you see an error, then review the previous steps again and configure the topic and permissions.
+
+IMPORTANT: Make sure that you completed steps 13/14 above to get your Device Access **Project ID** and enable the Pub/Sub API so that the App can create a subscription for events to be pushed to Hubitat!
 
 ## Installation
 
