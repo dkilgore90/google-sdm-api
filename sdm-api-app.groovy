@@ -1296,8 +1296,15 @@ def handleDeleteFilesBatch(resp, data) {
         } catch (Exception ignored) {
             // no response body
         }
-        // batch error at top-level is unexpected at any time -- log for further analysis
-        log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
+        // timeout -- sleep and re-run
+        if (respCode == 408) {
+            log.warn("Batch delete -- 408 timeout.  Sleeping 10s then retry")
+            pauseExecution(10000)
+            getFilesToDelete(data.device)
+        } else {
+            // batch error at top-level is unexpected at any time -- log for further analysis
+            log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
+        }
     } else {
         def respData = new String(resp.getData().decodeBase64())
         logDebug(respData)
