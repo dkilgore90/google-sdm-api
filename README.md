@@ -15,7 +15,7 @@ Follow the [Get Started QuickStart](https://developers.google.com/nest/device-ac
 10. Enter a name for your project.
 11. Enter the **OAuth 2.0 Client ID** generated above during _Set up Google Cloud Platform_
 12. Enable events so that asynchronous events will be sent via Google Cloud Pub/Sub
-* The Pub/Sub setup process has changed as of January 23rd 2025 -- a topic must be manually created.  These steps are listed below in the [**Pub/Sub setup**](#pubsub-setup) section.
+* The Pub/Sub setup process has changed as of January 23rd 2025 -- a topic must be manually created.  These steps are listed below in the [**PubSub setup**](#pubsub-setup) section.
 13. Upon completion, your project is assigned a **Project ID**, in the form of a UUID. You will need this when creating the Hubitat App later.
 14. Go to the [Cloud Pub/Sub API](https://console.developers.google.com/apis/library/pubsub.googleapis.com) page, and enable the Pub/Sub API for your Google Cloud Platform (GCP) project.
 
