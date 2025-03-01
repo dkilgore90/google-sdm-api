@@ -668,6 +668,7 @@ def putResponse(resp, data) {
     } else {
         logDebug(resp.getJson())
         state.eventSubscription = 'v2'
+        state.pubsubFailed = null
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
