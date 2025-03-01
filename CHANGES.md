@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 202503-01
+
+### sdm-api-app:1.2.0
+* bugfix: add backoff/retry in Google Drive cleanup to handle timeouts
+* Pub/Sub setup now requires manual topic creation -- allow input of the custom topic name
+
 ## 2025-01-18
 
 ### sdm-api-app:1.1.3
