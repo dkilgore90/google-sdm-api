@@ -17,7 +17,7 @@ import groovy.json.JsonOutput
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  version: 1.1.3
+ *  version: 1.2.0
  */
 
 definition(
@@ -64,6 +64,11 @@ private logDebug(msg) {
 
 def mainPage() {
     dynamicPage(name: "mainPage", title: "Setup", install: true, uninstall: true) {
+        if (state.googleAccessToken && !state.eventSubscription) {
+            section {
+                paragraph("<p style=\"color:orange;\">&#x26a0; Pub/Sub subscription not active -- this App will not receive events from Google!</p>")
+            }
+        }
         section {
             input 'projectId', 'text', title: 'Google Device Access - Project ID', required: true, submitOnChange: true
             if (!validateProjectId()) {
@@ -72,6 +77,15 @@ def mainPage() {
             input 'credentials', 'text', title: 'Google credentials.json', required: true, submitOnChange: true
             if (!getCredentials()) {
                 paragraph("<p style=\"color:red;\">credentials.json is not valid JSON, or missing required attributes</p>")
+            }
+            input 'pubsubTopic', 'text', title: 'Google Pub/Sub Topic', required: false, submitOnChange: true
+            if (!pubsubTopic) {
+                paragraph('''\
+                    <p style="color:orange;">If not specified, legacy topic format will be attempted. 
+                    New projects must create the Pub/Sub Topic manually</p>'''.stripIndent()
+                )
+            } else if (state.pubsubFailed && (pubsubTopic == state.pubsubFailed)) {
+                paragraph("<p style=\"color:red;\">Specified Pub/Sub topic was attempted and failed</p>")
             }
         }
         getAuthLink()
@@ -306,7 +320,11 @@ def rescheduleLogin() {
         refreshLogin()
         runEvery1Hour refreshLogin
         if (state.eventSubscription != 'v2') {
-            updateEventSubscription()
+            if (state.pubsubFailed || !state.eventSubscription) {
+                createEventSubscription()
+            } else {
+                updateEventSubscription()
+            }
         }
     }
 }
@@ -613,8 +631,11 @@ def buildSubscriptionRequest() {
     def uri = 'https://pubsub.googleapis.com/v1/projects/' + creds.project_id + '/subscriptions/hubitat-sdm-api'
     def headers = [ Authorization: 'Bearer ' + state.googleAccessToken ]
     def contentType = 'application/json'
+    if (!pubsubTopic) {
+        app.updateSetting('pubsubTopic', "projects/sdm-prod/topics/enterprise-${projectId}")
+    }
     def body = [
-        topic: 'projects/sdm-prod/topics/enterprise-' + projectId,
+        topic: pubsubTopic,
         pushConfig: [
             pushEndpoint: getFullApiServerUrl() + '/events?access_token=' + state.accessToken
         ],
@@ -624,16 +645,19 @@ def buildSubscriptionRequest() {
             maximumBackoff: "600s"
         ]
     ]
+    if (state.pubsubFailed && (pubsubTopic != state.pubsubFailed)) {
+        state.pubsubFailed = null
+    }
     def params = [ uri: uri, headers: headers, contentType: contentType, body: body ]
     return params
 }
 
 def putResponse(resp, data) {
     def respCode = resp.getStatus()
+    def respError = ''
     if (respCode == 409) {
         log.info('createEventSubscription returned status code 409 -- subscription already exists')
     } else if (respCode != 200) {
-        def respError = ''
         try {
             respError = resp.getErrorData().replaceAll('[\n]', '').replaceAll('[ \t]+', ' ')
         } catch (Exception ignored) {
@@ -644,12 +668,17 @@ def putResponse(resp, data) {
     } else {
         logDebug(resp.getJson())
         state.eventSubscription = 'v2'
+        state.pubsubFailed = null
     }
     if (respCode == 401 && !data.isRetry) {
         log.warn('Authorization token expired, will refresh and retry.')
         rescheduleLogin()
         data.isRetry = true
         asynchttpPut(putResponse, data.params, data)
+    }
+    if (respCode == 404 && respError.contains(pubsubTopic.tokenize('/')[-1])) {
+        log.error("Pub/Sub topic ${pubsubTopic} does not exist -- refer to the README steps to create a topic")
+        state.pubsubFailed = pubsubTopic
     }
 }
 
@@ -1296,8 +1325,15 @@ def handleDeleteFilesBatch(resp, data) {
         } catch (Exception ignored) {
             // no response body
         }
-        // batch error at top-level is unexpected at any time -- log for further analysis
-        log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
+        // timeout -- sleep and re-run
+        if (respCode == 408) {
+            log.warn("Batch delete -- 408 timeout.  Sleeping 10s then retry")
+            pauseExecution(10000)
+            getFilesToDelete(data.device)
+        } else {
+            // batch error at top-level is unexpected at any time -- log for further analysis
+            log.error("Batch delete -- response code: ${respCode}, body: ${respError}")
+        }
     } else {
         def respData = new String(resp.getData().decodeBase64())
         logDebug(respData)
