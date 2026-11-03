@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### sdm-api-app
+* bugfix: drop Pub/Sub messages that have no `resourceUpdate` (for example Google's `pubsubTopicPermissionCheck`) instead of throwing a NullPointerException in `postEvents`. The exception made the push fail, so Pub/Sub retried the message until retention ran out and slowed delivery of real device events.
+
 ## 202503-01
 
 ### sdm-api-app:1.2.0

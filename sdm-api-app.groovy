@@ -741,6 +741,10 @@ def postEvents() {
         logDebug("Dropping unhandled 'relationUpdate' event. This generally represents a device added/deleted in your home, or a change to its room assignment in Google.")
         return
     }
+    if (!dataJson.resourceUpdate?.name) {
+        logDebug("Dropping event with no resourceUpdate (for example Google's pubsubTopicPermissionCheck).")
+        return
+    }
     def deviceId = dataJson.resourceUpdate.name.tokenize('/')[-1]
     def device = getChildDevice(deviceId)
     if (device != null) {     
